@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Native State</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #d4d4d4;
+      color: #1a1a1a;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      padding: 120px 0 80px;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      margin-bottom: 32px;
+    }
+
+    .tagline {
+      font-size: 32px;
+      font-weight: 300;
+      color: #1a1a1a;
+      line-height: 1.3;
+      margin-bottom: 16px;
+    }
+
+    .location {
+      font-size: 14px;
+      font-weight: 400;
+      color: #777;
+      letter-spacing: 0.05em;
+    }
+
+    /* Sections */
+    section {
+      padding: 60px 0;
+      border-top: 1px solid #bbb;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    p {
+      font-size: 17px;
+      font-weight: 300;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    .emphasis {
+      color: #1a1a1a;
+      font-weight: 400;
+    }
+
+    /* Next show */
+    .next-show {
+      background: #c8c8c8;
+      border: 1px solid #b0b0b0;
+      padding: 40px;
+      margin-top: 24px;
+    }
+
+    .next-show .date {
+      font-size: 28px;
+      font-weight: 300;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .next-show .detail {
+      font-size: 15px;
+      color: #666;
+      font-weight: 400;
+    }
+
+    /* Floor plan */
+    .floor-plan {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .floor-plan img {
+      width: 100%;
+      max-width: 380px;
+    }
+
+    /* Format list */
+    .formats {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .formats li {
+      font-size: 13px;
+      font-weight: 400;
+      color: #555;
+      padding: 8px 16px;
+      border: 1px solid #aaa;
+      background: transparent;
+    }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .photo-grid img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .photo-grid img.wide {
+      grid-column: 1 / -1;
+      height: 340px;
+    }
+
+    @media (max-width: 600px) {
+      .photo-grid img {
+        height: 160px;
+      }
+
+      .photo-grid img.wide {
+        height: 240px;
+      }
+    }
+
+    /* Principles */
+    .principles {
+      list-style: none;
+    }
+
+    .principles li {
+      font-size: 16px;
+      font-weight: 300;
+      color: #666;
+      padding: 16px 0;
+      border-bottom: 1px solid #bbb;
+    }
+
+    .principles li:last-child {
+      border-bottom: none;
+    }
+
+    .principles strong {
+      color: #1a1a1a;
+      font-weight: 400;
+    }
+
+    /* Contact */
+    .contact-links {
+      display: flex;
+      gap: 32px;
+      margin-top: 24px;
+    }
+
+    a {
+      color: #1a1a1a;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 400;
+      border-bottom: 1px solid #999;
+      padding-bottom: 2px;
+      transition: border-color 0.2s;
+    }
+
+    a:hover {
+      border-color: #1a1a1a;
+    }
+
+    /* Footer */
+    footer {
+      padding: 60px 0 80px;
+      border-top: 1px solid #bbb;
+    }
+
+    footer p {
+      font-size: 13px;
+      color: #999;
+      font-weight: 400;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header {
+        padding: 80px 0 60px;
+      }
+
+      .tagline {
+        font-size: 26px;
+      }
+
+      section {
+        padding: 48px 0;
+      }
+
+      .next-show {
+        padding: 28px;
+      }
+
+      .next-show .date {
+        font-size: 24px;
+      }
+
+      .contact-links {
+        flex-direction: column;
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <header>
+      <h1>Native State</h1>
+      <div class="tagline">R&D in public.</div>
+      <div class="location">Eastern Gallery &mdash; Los Angeles</div>
+    </header>
+
+    <section>
+      <div class="section-label">About</div>
+      <p>
+        A monthly program for California-based media artists &mdash; working with light, code, screens, data, sound &mdash; to show work that isn't finished yet. Prototypes, experiments, tests. The kind of work that usually stays in the studio.
+      </p>
+      <p>
+        <span class="emphasis">The work doesn't have to be resolved. It has to be alive.</span>
+      </p>
+    </section>
+
+    <section>
+      <div class="section-label">Next Show</div>
+      <div class="next-show">
+        <div class="date">March 5, 2026</div>
+        <div class="detail">Every First Thursday &middot; Eastern Gallery</div>
+        <div class="detail"><a href="https://share.google/7fKvFamQ37GazRtAC" target="_blank">849 S Broadway, Los Angeles, CA 90014</a></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">The Space</div>
+      <div class="floor-plan">
+        <img src="floorplan.png" alt="Eastern Gallery floor plan — Room A, Room B, Space A, Space B, Entrance">
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Format</div>
+      <ul class="formats">
+        <li>Installations</li>
+        <li>Screenings</li>
+        <li>Performances</li>
+        <li>Talks</li>
+        <li>Open studios</li>
+        <li>Sound</li>
+      </ul>
+    </section>
+
+    <section>
+      <div class="section-label">Past Shows</div>
+      <div class="photo-grid">
+        <img class="wide" src="images/DSC00560.JPG" alt="Large-scale projection installation">
+        <img src="images/IMG_2991.JPG" alt="Viewer watching screen-based work">
+        <img src="images/IMG_2932.JPG" alt="Light installation with illuminated orbs">
+        <img src="images/DSC04955.JPG" alt="Green light projection in gallery room">
+        <img src="images/IMG_3573.JPG" alt="Silhouettes viewing projection in dark room">
+        <img class="wide" src="images/IMG_0767.JPG" alt="Performance with lab coats and mixed media">
+        <img src="images/DSC04950.JPG" alt="Blue particle landscape on screen">
+        <img src="images/DSC04954.JPG" alt="Point cloud projection in dark room">
+        <img src="images/IMG_2937.JPG" alt="Cockpit projection piece">
+        <img src="images/IMG_3016.JPG" alt="Visitors viewing light orb installation">
+        <img class="wide" src="images/DSC04925.JPG" alt="Gallery overview with artwork on walls">
+        <img src="images/IMG_0788.JPG" alt="Visitors chatting near mirror installation">
+        <img src="images/DSC04928.JPG" alt="Illuminated sculpture on pedestal">
+        <img src="images/DSC04944.JPG" alt="Shadowbox artworks on wall">
+        <img src="images/IMG_0753.JPG" alt="Gallery wide shot with visitors and art">
+        <img class="wide" src="images/IMG_0787.JPG" alt="Visitors exploring gallery space">
+        <img src="images/DSC04957.JPG" alt="Screen-based work in small gallery room">
+      </div>
+    </section>
+
+    <section>
+      <div class="section-label">Principles</div>
+      <ul class="principles">
+        <li><strong>Process over polish.</strong> The work doesn't need to be done. It needs to be honest.</li>
+        <li><strong>Artist-first.</strong> The programming serves the artists, not the market.</li>
+        <li><strong>Local roots.</strong> California-based. Building from here.</li>
+        <li><strong>Intimate scale.</strong> Small audiences, real conversation.</li>
+      </ul>
+    </section>
+
+    <section>
+      <div class="section-label">Participate</div>
+      <p>If you're a California-based artist working with technology and want to show something &mdash; finished or not &mdash; reach out.</p>
+      <div class="contact-links">
+        <a href="https://instagram.com/seungmin" target="_blank">Instagram</a>
+        <a href="mailto:info@seungminlee.net">Email</a>
+      </div>
+    </section>
+
+    <footer>
+      <p>Native State &middot; Founded 2026 &middot; Los Angeles</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
