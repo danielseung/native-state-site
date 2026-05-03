@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Native State</title>
-
   <!-- Open Graph -->
   <meta property="og:title" content="Native State">
   <meta property="og:description" content="R&D in public. A monthly media art program at Eastern Gallery in Downtown Los Angeles.">
@@ -17,560 +16,509 @@
   <meta name="twitter:title" content="Native State">
   <meta name="twitter:description" content="R&D in public. A monthly media art program at Eastern Gallery in Downtown Los Angeles.">
   <meta name="twitter:image" content="https://nativestate.info/images/logo.png">
-
   <style>
-    @font-face {
-      font-family: 'ABCFavorit';
-      src: url('fonts/ABCFavorit-Light-Trial.otf') format('opentype');
-      font-weight: 300;
-      font-style: normal;
-      font-display: swap;
-    }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Light-Trial.otf') format('opentype'); font-weight: 300; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Book-Trial.otf') format('opentype'); font-weight: 350; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Regular-Trial.otf') format('opentype'); font-weight: 400; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Medium-Trial.otf') format('opentype'); font-weight: 500; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Bold-Trial.otf') format('opentype'); font-weight: 700; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Extrabold-Trial.otf') format('opentype'); font-weight: 800; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Black-Trial.otf') format('opentype'); font-weight: 900; }
+    @font-face { font-family: 'ABCFavorit'; src: url('fonts/ABCFavorit-Ultra-Trial.otf') format('opentype'); font-weight: 950; }
+    @font-face { font-family: 'ABCMonumentGroteskMono'; src: url('fonts/ABCMonumentGroteskMono-Regular-Trial.otf') format('opentype'); font-weight: 400; }
 
-    @font-face {
-      font-family: 'ABCFavorit';
-      src: url('fonts/ABCFavorit-Regular-Trial.otf') format('opentype');
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 16px; }
 
-    @font-face {
-      font-family: 'ABCFavorit';
-      src: url('fonts/ABCFavorit-Medium-Trial.otf') format('opentype');
-      font-weight: 500;
-      font-style: normal;
-      font-display: swap;
+    :root {
+      --bg: #fff;
+      --fg: #111;
+      --fg-dim: #888;
+      --fg-dimmer: #bbb;
+      --fg-faint: #ccc;
+      --border: #e8e8e8;
+      --border-light: #f2f2f2;
+      --border-faint: #f0f0f0;
+      --badge-bg: #fff;
+      --input-bg: #fff;
+      --countdown-bg: #fff;
+      --topbar-bg: #fff;
     }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111;
+        --fg: #f0f0ee;
+        --fg-dim: #888;
+        --fg-dimmer: #555;
+        --fg-faint: #444;
+        --border: #222;
+        --border-light: #1a1a1a;
+        --border-faint: #1c1c1c;
+        --badge-bg: #111;
+        --input-bg: #1a1a1a;
+        --countdown-bg: #111;
+        --topbar-bg: #111;
+      }
     }
 
     body {
+      background: var(--bg);
+      color: var(--fg);
       font-family: 'ABCFavorit', 'Helvetica Neue', sans-serif;
-      background: #d4d4d4;
-      color: #1a1a1a;
-      line-height: 1.7;
+      font-weight: 300;
       -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
     }
+    a { color: inherit; text-decoration: none; }
 
-    .container {
-      max-width: 680px;
-      margin: 0 auto;
-      padding: 0 24px;
+    /* ── Lightbox ── */
+    .lb-overlay {
+      position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 97%, transparent);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
     }
+    .lb-inner { position: relative; max-width: 90vw; max-height: 90vh; }
+    .lb-inner img { max-width: 90vw; max-height: 82vh; object-fit: contain; display: block; }
+    .lb-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; color: var(--fg-dim); }
+    .lb-btn { background: none; border: 1px solid var(--border); padding: 6px 16px; cursor: pointer; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; letter-spacing: 0.08em; }
+    .lb-close { position: absolute; top: 24px; right: 32px; background: none; border: none; cursor: pointer; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: #666; letter-spacing: 0.1em; }
 
-    /* Logo */
-    .logo {
-      width: 120px;
-      margin-bottom: 32px;
+    /* ── Layout ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      align-items: center; padding: 10px 32px;
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
     }
+    .topbar .brand { color: var(--fg); }
+    .topbar .center { text-align: center; }
+    .topbar .right { text-align: right; }
 
-    /* Header */
-    header {
-      padding: 120px 0 80px;
-    }
-
-    h1 {
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #1a1a1a;
-      margin-bottom: 32px;
-    }
-
-    .tagline {
-      font-size: 32px;
-      font-weight: 300;
-      color: #1a1a1a;
-      line-height: 1.3;
-      margin-bottom: 16px;
-    }
-
-    .location {
-      font-size: 14px;
-      font-weight: 400;
-      color: #777;
-      letter-spacing: 0.05em;
-    }
-
-    /* Sections */
-    section {
-      padding: 60px 0;
-      border-top: 1px solid #bbb;
-    }
-
-    .section-label {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: #888;
-      margin-bottom: 24px;
-    }
-
-    p {
-      font-size: 17px;
-      font-weight: 300;
-      color: #555;
-      margin-bottom: 20px;
-    }
-
-    p:last-child {
-      margin-bottom: 0;
-    }
-
-    .emphasis {
-      color: #1a1a1a;
-      font-weight: 400;
-    }
-
-    /* Next show */
-    .next-show {
-      background: #c8c8c8;
-      border: 1px solid #b0b0b0;
-      padding: 40px;
-      margin-top: 24px;
-    }
-
-    .next-show .date {
-      font-size: 28px;
-      font-weight: 300;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-
-    .next-show .detail {
-      font-size: 15px;
-      color: #666;
-      font-weight: 400;
-    }
-
-    /* Archive */
-    .archive-item {
-      margin-top: 16px;
-    }
-
-    .archive-item summary {
-      cursor: pointer;
-      padding: 16px 0;
-      border-bottom: 1px solid #bbb;
-      list-style: none;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 15px;
-      font-weight: 400;
-      color: #1a1a1a;
-    }
-
-    .archive-item summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .archive-item summary::after {
-      content: '+';
-      font-size: 18px;
-      font-weight: 300;
-      color: #888;
-      transition: transform 0.2s;
-    }
-
-    .archive-item[open] summary::after {
-      content: '\2212';
-    }
-
-    .archive-item .summary-left .show-number {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #888;
-      margin-right: 12px;
-    }
-
-    .archive-item .summary-left .show-date {
-      font-size: 15px;
-      color: #1a1a1a;
-    }
-
-    .archive-content {
-      padding: 24px 0 32px;
-    }
-
-    .archive-content .artist-list {
-      list-style: none;
-    }
-
-    .archive-content .artist-list li {
-      padding: 12px 0;
-      border-bottom: 1px solid #ccc;
-    }
-
-    .archive-content .artist-list li:last-child {
-      border-bottom: none;
-    }
-
-    .archive-content .artist-name {
-      font-size: 15px;
-      font-weight: 500;
-      color: #1a1a1a;
-      display: block;
-      margin-bottom: 2px;
-    }
-
-    .archive-content .artist-work {
-      font-size: 13px;
-      font-weight: 400;
-      color: #777;
-      display: block;
-    }
-
-    .archive-content .artist-members {
-      font-size: 12px;
-      font-weight: 300;
-      color: #999;
-      display: block;
-      margin-top: 4px;
-    }
-
-    /* Floor plan */
-    .floor-plan {
-      margin-top: 24px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .floor-plan img {
-      width: 100%;
-      max-width: 380px;
-    }
-
-    /* Format list */
-    .formats {
-      list-style: none;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 24px;
-    }
-
-    .formats li {
-      font-size: 13px;
-      font-weight: 400;
-      color: #555;
-      padding: 8px 16px;
-      border: 1px solid #aaa;
-      background: transparent;
-    }
-
-    /* Photo grid */
-    .photo-grid {
+    .hero {
+      padding: 64px 32px 52px;
+      border-bottom: 1px solid var(--border);
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 24px;
+      gap: 48px;
+      align-items: end;
     }
-
-    .photo-grid img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      display: block;
+    .hero-title {
+      font-size: 48px;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      color: var(--fg);
     }
-
-    .photo-grid img.wide {
-      grid-column: 1 / -1;
-      height: 340px;
-    }
-
-    @media (max-width: 600px) {
-      .photo-grid img {
-        height: 160px;
-      }
-
-      .photo-grid img.wide {
-        height: 240px;
-      }
-    }
-
-    /* Principles */
-    .principles {
-      list-style: none;
-    }
-
-    .principles li {
-      font-size: 16px;
+    .hero-title em {
+      font-style: italic;
       font-weight: 300;
-      color: #666;
-      padding: 16px 0;
-      border-bottom: 1px solid #bbb;
     }
-
-    .principles li:last-child {
-      border-bottom: none;
-    }
-
-    .principles strong {
-      color: #1a1a1a;
-      font-weight: 400;
-    }
-
-    /* Contact */
-    .contact-links {
-      display: flex;
-      gap: 32px;
-      margin-top: 24px;
-    }
-
-    a {
-      color: #1a1a1a;
-      text-decoration: none;
-      font-size: 15px;
-      font-weight: 400;
-      border-bottom: 1px solid #999;
-      padding-bottom: 2px;
-      transition: border-color 0.2s;
-    }
-
-    a:hover {
-      border-color: #1a1a1a;
-    }
-
-    /* Footer */
-    footer {
-      padding: 60px 0 80px;
-      border-top: 1px solid #bbb;
-    }
-
-    footer p {
+    .hero-desc {
       font-size: 13px;
-      color: #999;
-      font-weight: 400;
+      color: var(--fg-dim);
+      line-height: 1.7;
+      font-weight: 300;
+      max-width: 360px;
+      margin-bottom: 24px;
+    }
+    .hero-links { display: flex; gap: 24px; }
+    .hero-links a {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.12em;
+      color: var(--fg); border-bottom: 1px solid var(--fg-faint); padding-bottom: 1px;
     }
 
-    /* Responsive */
-    @media (max-width: 600px) {
-      header {
-        padding: 80px 0 60px;
-      }
-
-      .tagline {
-        font-size: 26px;
-      }
-
-      section {
-        padding: 48px 0;
-      }
-
-      .next-show {
-        padding: 28px;
-      }
-
-      .next-show .date {
-        font-size: 24px;
-      }
-
-      .contact-links {
-        flex-direction: column;
-        gap: 16px;
-      }
+    /* ── Table header ── */
+    .table-header {
+      display: grid;
+      grid-template-columns: 110px 1fr 200px 160px;
+      gap: 0 24px;
+      padding: 10px 32px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.15em; color: var(--fg-dimmer);
     }
+
+    /* ── Show row ── */
+    .show-row {
+      border-bottom: 1px solid var(--border);
+    }
+    .show-meta {
+      display: grid;
+      grid-template-columns: 110px 1fr 200px 160px;
+      gap: 0 24px;
+      padding: 18px 32px;
+      align-items: start;
+    }
+    .show-num {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--fg-dim); padding-top: 3px;
+    }
+    .show-num.upcoming { color: var(--fg); font-weight: 500; }
+    .show-artists-inline { font-size: 14px; font-weight: 300; line-height: 1.5; }
+    .show-artists-inline.upcoming { font-weight: 400; }
+    .show-date-col {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 11px; color: var(--fg-dim); padding-top: 3px;
+    }
+    .show-status { font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; padding-top: 4px; }
+    .badge-upcoming { border: 1px solid var(--fg); padding: 2px 8px; letter-spacing: 0.1em; display: inline-block; }
+    .badge-past { color: var(--fg-faint); letter-spacing: 0.1em; }
+
+    /* ── Spread (upcoming) ── */
+    .show-spread {
+      padding: 0 32px 56px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+    .spread-poster { width: 100%; display: block; cursor: pointer; }
+    .spread-right { padding-top: 4px; }
+    .spread-label {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.16em; color: var(--fg-dimmer); margin-bottom: 18px;
+    }
+    .lineup-item {
+      display: flex; gap: 14px; padding: 9px 0;
+      border-bottom: 1px solid var(--border-light); align-items: baseline;
+    }
+    .lineup-num {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; color: var(--fg-dimmer); width: 20px; flex-shrink: 0;
+    }
+    .lineup-name { font-size: 14px; font-weight: 300; }
+    .countdown-row { display: flex; gap: 36px; margin-bottom: 28px; }
+    .countdown-unit { }
+    .countdown-num { font-size: 40px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; }
+    .countdown-label {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 9px; color: var(--fg-dimmer); letter-spacing: 0.2em; margin-top: 5px;
+    }
+    .mail-form { display: flex; }
+    .mail-input {
+      border: 1px solid var(--fg-faint); border-right: none;
+      padding: 10px 14px;
+      font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px;
+      outline: none; width: 210px; background: var(--input-bg); color: var(--fg);
+    }
+    .mail-btn {
+      border: 1px solid var(--fg-faint); background: var(--fg); color: #fff;
+      padding: 10px 16px;
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.12em; cursor: pointer;
+    }
+    .mail-done {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 11px; letter-spacing: 0.1em; color: var(--fg-dim);
+    }
+
+    /* ── Archive spread ── */
+    .archive-spread {
+      padding: 0 32px 48px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 40px;
+    }
+    .archive-poster { width: 100%; display: block; cursor: pointer; max-width: 360px; }
+    .archive-right { padding-top: 4px; }
+    .doc-grid {
+      padding: 0 32px 48px;
+    }
+    .doc-label {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.15em; color: var(--fg-dimmer); margin-bottom: 12px;
+    }
+    .doc-photos {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 4px;
+    }
+    .doc-photos img {
+      width: 100%; height: 160px; object-fit: cover; cursor: pointer; display: block;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 28px 32px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; color: var(--fg-faint); letter-spacing: 0.1em;
+      border-top: 1px solid var(--border-faint);
+    }
+    .footer .mid { text-align: center; }
+    .footer .right { text-align: right; }
   </style>
 </head>
 <body>
 
-  <div class="container">
+<!-- ── Top bar ── -->
+<div class="topbar">
+  <span class="brand">NATIVE STATE</span>
+  <span class="center">MEDIA ART PROGRAM</span>
+  <span class="right">DTLA · EASTERN GALLERY</span>
+</div>
 
-    <header>
-      <img src="images/logo.png" alt="Native State" class="logo">
-      <h1>Native State</h1>
-      <div class="tagline">R&D in public.</div>
-      <div class="location">Eastern Gallery &mdash; Los Angeles</div>
-      <div class="location">In partnership with Artnight DTLA</div>
-    </header>
-
-    <section>
-      <div class="section-label">About</div>
-      <p>
-        Native State is a monthly media art program at Eastern Gallery in Downtown Los Angeles, presented in partnership with Artnight. Each first Thursday, the program features California-based artists and designers whose work engages with technology &mdash; shown not as finished pieces, but as research, iteration, and work in progress.
-      </p>
-      <p>
-        The premise is simple: nothing is ever done. Our natural state &mdash; as people and as practitioners &mdash; is motion. Ideas evolve through contact with others. Work sharpens through dialogue, not isolation. Native State opens that process to the public, inviting conversation and feedback as part of the work itself, not after it.
-      </p>
-      <p>
-        <span class="emphasis">The name refers to an unaltered condition &mdash; a material before it's been processed, a signal before it's been compressed.</span>
-      </p>
-    </section>
-
-    <section>
-      <div class="section-label">Next Show</div>
-      <div class="next-show">
-        <div class="date">Native State 02 &mdash; March 5, 2026</div>
-        <div class="detail">Every First Thursday &middot; Eastern Gallery</div>
-        <div class="detail"><a href="https://share.google/7fKvFamQ37GazRtAC" target="_blank">849 S Broadway, Los Angeles, CA 90014</a></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-label">Previous Exhibitions</div>
-      <details class="archive-item">
-        <summary>
-          <span class="summary-left">
-            <span class="show-number">Native State 01</span>
-            <span class="show-date">&mdash; February 5, 2026</span>
-          </span>
-        </summary>
-        <div class="archive-content">
-          <img src="images/poster-feb5.png" alt="Native State 01 poster" style="width: 100%; max-width: 480px; margin-bottom: 24px; display: block;">
-          <ul class="artist-list">
-            <li>
-              <span class="artist-name">Cybernetic Horticulture Lab</span>
-              <span class="artist-work">Gesture Recognition System</span>
-              <span class="artist-members">Bob Wuss (Direction), Evan Nie (Specimen Sculpture), Andrew Prahlow (Music), Evan Gannon (Lighting &amp; Show Systems), Christian Seung (Viola), David Tangney (Cello), Chris Blim (Facilitator)</span>
-            </li>
-            <li>
-              <span class="artist-name">DAISY</span>
-              <span class="artist-work">Isometric Profanities</span>
-            </li>
-            <li>
-              <span class="artist-name">Hyunseo Cho</span>
-              <span class="artist-work">Perspective Practice</span>
-            </li>
-            <li>
-              <span class="artist-name">Seungmin Lee</span>
-              <span class="artist-work">Light Noise</span>
-            </li>
-          </ul>
-        </div>
-      </details>
-      <details class="archive-item">
-        <summary>
-          <span class="summary-left">
-            <span class="show-number">Native State 00</span>
-            <span class="show-date">&mdash; January 8, 2026</span>
-          </span>
-        </summary>
-        <div class="archive-content">
-          <ul class="artist-list">
-            <li><span class="artist-name">Alligator Jesus</span></li>
-            <li><span class="artist-name">Superchief Gallery</span></li>
-            <li><span class="artist-name">Seungmin Lee</span></li>
-            <li><span class="artist-name">Brendan North</span></li>
-            <li><span class="artist-name">Hyunseo Cho</span></li>
-            <li><span class="artist-name">Airbrush_by_dupree</span></li>
-            <li><span class="artist-name">Angelicairbrush</span></li>
-            <li><span class="artist-name">Airbrushingfordummies</span></li>
-            <li><span class="artist-name">Brayanramales</span></li>
-            <li><span class="artist-name">Fnnngn</span></li>
-            <li><span class="artist-name">g0dcila</span></li>
-            <li><span class="artist-name">Gabrielrozzell</span></li>
-            <li><span class="artist-name">Gooodnewz</span></li>
-            <li><span class="artist-name">Ligmaairbrush</span></li>
-            <li><span class="artist-name">_lil_red_corvette_</span></li>
-            <li><span class="artist-name">Love_angel_gata</span></li>
-            <li><span class="artist-name">Maibunia</span></li>
-            <li><span class="artist-name">Mrhoodbrush</span></li>
-            <li><span class="artist-name">Nailbb_</span></li>
-            <li><span class="artist-name">Not__urz</span></li>
-            <li><span class="artist-name">Ragsorsomething</span></li>
-            <li><span class="artist-name">Sobstoryy</span></li>
-            <li><span class="artist-name">Stuckinthepen</span></li>
-            <li><span class="artist-name">Thatoneflako</span></li>
-            <li><span class="artist-name">Unserious_jo</span></li>
-            <li><span class="artist-name">333.333.333zzz</span></li>
-          </ul>
-        </div>
-      </details>
-      <details class="archive-item">
-        <summary>
-          <span class="summary-left">
-            <span class="show-number">Native State Pilot</span>
-            <span class="show-date">&mdash; December 4, 2025</span>
-          </span>
-        </summary>
-        <div class="archive-content">
-          <ul class="artist-list">
-            <li><span class="artist-name">Alligator Jesus</span></li>
-            <li><span class="artist-name">Superchief Gallery</span></li>
-            <li><span class="artist-name">Estevan Oriol</span></li>
-            <li><span class="artist-name">Brendan North</span></li>
-            <li><span class="artist-name">Seungmin Lee</span></li>
-          </ul>
-        </div>
-      </details>
-    </section>
-
-    <section>
-      <div class="section-label">The Space</div>
-      <div class="floor-plan">
-        <img src="floorplan.png" alt="Eastern Gallery floor plan — Room A, Room B, Space A, Space B, Entrance">
-      </div>
-    </section>
-
-    <section>
-      <div class="section-label">Format</div>
-      <ul class="formats">
-        <li>Installations</li>
-        <li>Screenings</li>
-        <li>Performances</li>
-        <li>Talks</li>
-        <li>Open studios</li>
-        <li>Sound</li>
-      </ul>
-    </section>
-
-    <section>
-      <div class="section-label">Past Shows</div>
-      <div class="photo-grid">
-        <img class="wide" src="images/DSC00560.JPG" alt="Large-scale projection installation">
-        <img src="images/IMG_2991.JPG" alt="Viewer watching screen-based work">
-        <img src="images/IMG_2932.JPG" alt="Light installation with illuminated orbs">
-        <img src="images/DSC04955.JPG" alt="Green light projection in gallery room">
-        <img src="images/IMG_3573.JPG" alt="Silhouettes viewing projection in dark room">
-        <img class="wide" src="images/IMG_0767.JPG" alt="Performance with lab coats and mixed media">
-        <img src="images/DSC04950.JPG" alt="Blue particle landscape on screen">
-        <img src="images/DSC04954.JPG" alt="Point cloud projection in dark room">
-        <img src="images/IMG_2937.JPG" alt="Cockpit projection piece">
-        <img src="images/IMG_3016.JPG" alt="Visitors viewing light orb installation">
-        <img class="wide" src="images/DSC04925.JPG" alt="Gallery overview with artwork on walls">
-        <img src="images/IMG_0788.JPG" alt="Visitors chatting near mirror installation">
-        <img src="images/DSC04928.JPG" alt="Illuminated sculpture on pedestal">
-        <img src="images/DSC04944.JPG" alt="Shadowbox artworks on wall">
-        <img src="images/IMG_0753.JPG" alt="Gallery wide shot with visitors and art">
-        <img class="wide" src="images/IMG_0787.JPG" alt="Visitors exploring gallery space">
-        <img src="images/DSC04957.JPG" alt="Screen-based work in small gallery room">
-      </div>
-    </section>
-
-    <section>
-      <div class="section-label">Principles</div>
-      <ul class="principles">
-        <li><strong>Process over polish.</strong> The work doesn't need to be done. It needs to be honest.</li>
-        <li><strong>Artist-first.</strong> The programming serves the artists, not the market.</li>
-        <li><strong>Local roots.</strong> California-based. Building from here.</li>
-        <li><strong>Intimate scale.</strong> Small audiences, real conversation.</li>
-      </ul>
-    </section>
-
-    <section>
-      <div class="section-label">Participate</div>
-      <p>If you're a California-based artist working with technology and want to show something &mdash; finished or not &mdash; reach out.</p>
-      <div class="contact-links">
-        <a href="https://instagram.com/seungmin" target="_blank">Instagram</a>
-        <a href="mailto:info@seungminlee.net">Email</a>
-      </div>
-    </section>
-
-    <footer>
-      <p>Native State &middot; Founded 2026 &middot; Los Angeles</p>
-    </footer>
-
+<!-- ── Hero ── -->
+<div class="hero">
+  <div>
+    <div class="hero-title">Native State</div>
   </div>
+  <div>
+    <div class="hero-desc">
+      R&D in public. A monthly media art program at Eastern Gallery in Downtown Los Angeles. California-based artists working with technology — shown not as finished pieces, but as research, iteration, and work in progress.
+    </div>
+    <div class="hero-links">
+      <a href="https://www.instagram.com/nativestate.la/" target="_blank">INSTAGRAM</a>
+      <a href="mailto:hello@nativestate.info">EMAIL</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Table header ── -->
+<div class="table-header">
+  <span>SHOW</span>
+  <span>ARTISTS</span>
+  <span>DATE</span>
+  <span>STATUS</span>
+</div>
+
+<!-- ── JS renders the show list ── -->
+<div id="shows"></div>
+
+<!-- ── Footer ── -->
+<div class="footer">
+  <span>NATIVE STATE · LOS ANGELES</span>
+  <span class="mid">FOUNDED 2026</span>
+  <span class="right">IN PARTNERSHIP WITH ARTNIGHT DTLA</span>
+</div>
+
+<!-- ── Lightbox container ── -->
+<div id="lightbox" style="display:none;" class="lb-overlay">
+  <div class="lb-inner">
+    <img id="lb-img" src="" alt="" />
+    <div class="lb-nav">
+      <button class="lb-btn" onclick="lbPrev()">← PREV</button>
+      <span id="lb-counter"></span>
+      <button class="lb-btn" onclick="lbNext()">NEXT →</button>
+    </div>
+  </div>
+  <button class="lb-close" onclick="lbClose()">CLOSE ×</button>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const NEXT = {
+  number: '4.0',
+  date: 'May 7, 2026',
+  time: '18:00 – 22:00',
+  timestamp: new Date('2026-05-07T18:00:00').getTime(),
+  poster: 'images/poster-4.0.png',
+  artists: [
+    'Adrian "Quizy" Quintero','Carlo Valentino','Carrie Chen',
+    'DAISY','Emmanuel Comacho Larios','Lag Switch',
+    'Hyunseo Cho','Lauren Alex Kim','Münki',
+    'Piera','Qianqian Ye','Seungmin Lee'
+  ]
+};
+
+const ARCHIVE = [
+  {
+    number: 'Native State 3.0', date: 'April 2, 2026',
+    poster: 'images/poster-apr2.avif', photos: [],
+    artists: ['DAISY','Hyunseo Cho','Lauren Alex Kim','Münki','Evan Nie','Seungmin Lee']
+  },
+  {
+    number: 'Native State 2.0', date: 'March 5, 2026',
+    poster: 'images/poster-mar5.png', photos: [],
+    artists: ['011688','Cybernetic Horticulture Lab','Evan Nie','Hyunseo Cho','Münki','Kyle McDonald','Seungmin Lee']
+  },
+  {
+    number: 'Native State 1.0', date: 'February 5, 2026',
+    poster: 'images/poster-feb5.png',
+    photos: ['images/DSC00560.JPG','images/IMG_2991.JPG','images/IMG_2932.JPG','images/DSC04955.JPG'],
+    artists: [
+      {name:'Cybernetic Horticulture Lab', work:'Gesture Recognition System'},
+      {name:'DAISY', work:'Isometric Profanities'},
+      {name:'Hyunseo Cho', work:'Perspective Practice'},
+      {name:'Seungmin Lee', work:'Light Noise'},
+    ]
+  },
+  {
+    number: 'Native State 0.0', date: 'January 8, 2026',
+    photos: ['images/IMG_3573.JPG','images/IMG_0767.JPG','images/DSC04950.JPG','images/DSC04954.JPG'],
+    artists: ['Alligator Jesus','Superchief Gallery','Seungmin Lee','Brendan North','Hyunseo Cho','Airbrush_by_dupree','333.333.333zzz']
+  },
+  {
+    number: 'Native State Pilot', date: 'December 4, 2025',
+    photos: ['images/IMG_3016.JPG','images/DSC04925.JPG','images/IMG_0788.JPG','images/DSC04928.JPG'],
+    artists: ['Alligator Jesus','Superchief Gallery','Estevan Oriol','Brendan North','Seungmin Lee']
+  }
+];
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+let lbPhotos = [], lbIdx = 0;
+function lbOpen(photos, idx) {
+  lbPhotos = photos; lbIdx = idx;
+  lbRender();
+  document.getElementById('lightbox').style.display = 'flex';
+}
+function lbClose() { document.getElementById('lightbox').style.display = 'none'; }
+function lbPrev() { lbIdx = (lbIdx - 1 + lbPhotos.length) % lbPhotos.length; lbRender(); }
+function lbNext() { lbIdx = (lbIdx + 1) % lbPhotos.length; lbRender(); }
+function lbRender() {
+  document.getElementById('lb-img').src = lbPhotos[lbIdx];
+  document.getElementById('lb-counter').textContent = (lbIdx + 1) + ' / ' + lbPhotos.length;
+}
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  if (e.target === this) lbClose();
+});
+document.addEventListener('keydown', function(e) {
+  if (document.getElementById('lightbox').style.display !== 'none') {
+    if (e.key === 'Escape') lbClose();
+    if (e.key === 'ArrowLeft') lbPrev();
+    if (e.key === 'ArrowRight') lbNext();
+  }
+});
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+function getCountdown() {
+  const diff = Math.max(0, NEXT.timestamp - Date.now());
+  const s = Math.floor(diff / 1000);
+  return {
+    d: Math.floor(s / 86400),
+    h: Math.floor((s % 86400) / 3600),
+    m: Math.floor((s % 3600) / 60),
+    s: s % 60
+  };
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+// ── Mailing list ──────────────────────────────────────────────────────────────
+let subscribed = false;
+function submitMail(e) {
+  e.preventDefault();
+  const val = document.getElementById('mail-input').value;
+  if (val.includes('@')) {
+    subscribed = true;
+    document.getElementById('mail-wrap').innerHTML = '<div class="mail-done">✓ YOU\'RE ON THE LIST</div>';
+  }
+}
+
+// ── Render shows ──────────────────────────────────────────────────────────────
+function artistLine(artists, max) {
+  const names = artists.map(a => typeof a === 'string' ? a : a.name);
+  const shown = names.slice(0, max).join(', ');
+  const rest = names.length > max ? ` +${names.length - max} more` : '';
+  return shown + (rest ? `<span style="color:#bbb">${rest}</span>` : '');
+}
+
+function renderUpcoming() {
+  return `
+  <div class="show-row">
+    <div class="show-meta">
+      <div class="show-num upcoming">Native State ${NEXT.number}</div>
+      <div class="show-artists-inline upcoming">${artistLine(NEXT.artists, 6)}</div>
+      <div class="show-date-col">${NEXT.date}<br/><a href="https://share.google/aQyUKA4yUXSYlqQKg" target="_blank" style="color:var(--fg-dim);border-bottom:1px solid var(--border);padding-bottom:1px;font-size:10px;">849 S Broadway, LA</a></div>
+      <div class="show-status"><span class="badge-upcoming">UPCOMING</span></div>
+    </div>
+    <div class="show-spread">
+      <div>
+        <img class="spread-poster" src="${NEXT.poster}" onclick="lbOpen(['${NEXT.poster}'],0)" alt="Native State ${NEXT.number} poster" />
+      </div>
+      <div class="spread-right">
+        <div class="spread-label">FULL LINEUP</div>
+        <div id="lineup-list">
+          ${NEXT.artists.map((a,i)=>`
+            <div class="lineup-item">
+              <span class="lineup-num">${pad(i+1)}</span>
+              <span class="lineup-name">${a}</span>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:32px;">
+          <div id="mail-wrap">
+            <form class="mail-form" onsubmit="submitMail(event)">
+              <input id="mail-input" class="mail-input" type="email" placeholder="your@email.com" />
+              <button class="mail-btn" type="submit">NOTIFY ME</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderArchiveShow(show) {
+  const allPhotos = show.poster ? [show.poster, ...(show.photos||[])] : (show.photos||[]);
+
+  let spreadHtml = '';
+  if (show.poster) {
+    const fullList = show.artists.map((a,i) => {
+      const name = typeof a === 'string' ? a : a.name;
+      const work = typeof a === 'object' && a.work ? `<div style="font-size:11px;color:var(--fg-dim);font-style:italic;margin-top:1px;">${a.work}</div>` : '';
+      return `<div class="lineup-item">
+        <span class="lineup-num">${pad(i+1)}</span>
+        <div><span class="lineup-name">${name}</span>${work}</div>
+      </div>`;
+    }).join('');
+
+    // If there are photos too, show them below the lineup inside the spread
+    const photosInSpread = show.photos && show.photos.length > 0 ? `
+      <div style="margin-top:24px;">
+        <div class="spread-label">DOCUMENTATION</div>
+        <div class="doc-photos" style="grid-template-columns:repeat(${Math.min(show.photos.length,4)},1fr);">
+          ${show.photos.map((p,i)=>`<img src="${p}" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}
+        </div>
+      </div>` : '';
+
+    spreadHtml = `
+    <div class="archive-spread">
+      <img class="archive-poster" src="${show.poster}" onclick="lbOpen(${JSON.stringify(allPhotos)},0)" alt="${show.number} poster" />
+      <div class="archive-right">
+        <div class="spread-label">FULL LINEUP</div>
+        ${fullList}
+        ${photosInSpread}
+      </div>
+    </div>`;
+  } else if (show.photos && show.photos.length > 0) {
+    // No poster — show artists + photos together
+    const fullList = show.artists.map((a,i) => {
+      const name = typeof a === 'string' ? a : a.name;
+      return `<div class="lineup-item"><span class="lineup-num">${pad(i+1)}</span><span class="lineup-name">${name}</span></div>`;
+    }).join('');
+    spreadHtml = `
+    <div class="archive-spread" style="grid-template-columns:1fr 1fr;">
+      <div>
+        <div class="spread-label">ARTISTS</div>
+        ${fullList}
+      </div>
+      <div>
+        <div class="spread-label">DOCUMENTATION</div>
+        <div class="doc-photos" style="grid-template-columns:repeat(2,1fr);">${show.photos.map((p,i)=>`<img src="${p}" style="height:120px;" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}</div>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="show-row">
+    <div class="show-meta">
+      <div class="show-num">${show.number}</div>
+      <div class="show-artists-inline">${artistLine(show.artists, 5)}</div>
+      <div class="show-date-col">${show.date}</div>
+      <div class="show-status"><span class="badge-past">PAST</span></div>
+    </div>
+    ${spreadHtml}
+  </div>`;
+}
+
+function renderAll() {
+  let html = renderUpcoming();
+  ARCHIVE.forEach(show => { html += renderArchiveShow(show); });
+  document.getElementById('shows').innerHTML = html;
+}
+
+renderAll();
+
+// ── Tick (unused) ─────────────────────────────────────────────────────────────
+</script>
 
 </body>
 </html>
