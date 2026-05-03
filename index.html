@@ -579,22 +579,13 @@ function renderArchiveShow(show) {
 }
 
 function renderDocumentation() {
-  const shows = ARCHIVE.filter(s => s.photos && s.photos.length > 0);
-  if (!shows.length) return '';
-  const sections = shows.map(show => `
-    <div class="doc-section">
-      <div class="doc-section-head">
-        <span class="doc-section-title">${show.number}</span>
-        <span class="doc-section-date">${show.date}</span>
-      </div>
-      <div class="doc-photos">
-        ${show.photos.map((p,i)=>`<img src="${p}" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}
-      </div>
-    </div>`).join('');
+  const all = ARCHIVE.flatMap(s => s.photos || []);
+  if (!all.length) return '';
+  const imgs = all.map((p,i)=>`<img src="${p}" onclick="lbOpen(${JSON.stringify(all)},${i})" alt="" />`).join('');
   return `
   <div class="doc-archive">
     <div class="doc-archive-header">DOCUMENTATION</div>
-    ${sections}
+    <div class="doc-photos">${imgs}</div>
   </div>`;
 }
 
