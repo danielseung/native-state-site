@@ -429,11 +429,8 @@ function submitMail(e) {
 }
 
 // ── Render shows ──────────────────────────────────────────────────────────────
-function artistLine(artists, max) {
-  const names = artists.map(a => typeof a === 'string' ? a : a.name);
-  const shown = names.slice(0, max).join(', ');
-  const rest = names.length > max ? ` +${names.length - max} more` : '';
-  return shown + (rest ? `<span style="color:#bbb">${rest}</span>` : '');
+function artistLine(artists) {
+  return artists.map(a => typeof a === 'string' ? a : a.name).join(', ');
 }
 
 function renderUpcoming() {
@@ -441,7 +438,7 @@ function renderUpcoming() {
   <div class="show-row">
     <div class="show-meta">
       <div class="show-num upcoming">Native State ${NEXT.number}</div>
-      <div class="show-artists-inline upcoming">${artistLine(NEXT.artists, 6)}</div>
+      <div class="show-artists-inline upcoming">${artistLine(NEXT.artists)}</div>
       <div class="show-date-col">${NEXT.date}<br/><a href="https://share.google/aQyUKA4yUXSYlqQKg" target="_blank" style="color:var(--fg-dim);border-bottom:1px solid var(--border);padding-bottom:1px;font-size:10px;">849 S Broadway, LA</a></div>
       <div class="show-status"><span class="badge-upcoming">UPCOMING</span></div>
     </div>
@@ -510,7 +507,7 @@ function renderArchiveShow(show) {
   <div class="show-row">
     <div class="show-meta">
       <div class="show-num">${show.number}</div>
-      <div class="show-artists-inline">${artistLine(show.artists, 5)}</div>
+      <div class="show-artists-inline">${artistLine(show.artists)}</div>
       <div class="show-date-col">${show.date}</div>
       <div class="show-status"><span class="badge-past">PAST</span></div>
     </div>
