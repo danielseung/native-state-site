@@ -236,6 +236,31 @@
       width: 100%; height: 160px; object-fit: cover; cursor: pointer; display: block;
     }
 
+    /* ── Bottom documentation archive ── */
+    .doc-archive {
+      padding: 56px 32px 48px;
+      border-top: 1px solid var(--border);
+    }
+    .doc-archive-header {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 11px; letter-spacing: 0.18em; color: var(--fg);
+      margin-bottom: 28px;
+    }
+    .doc-section { margin-bottom: 36px; }
+    .doc-section:last-child { margin-bottom: 0; }
+    .doc-section-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding-bottom: 10px; margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .doc-section-title {
+      font-size: 14px; font-weight: 400;
+    }
+    .doc-section-date {
+      font-family: 'ABCMonumentGroteskMono', monospace;
+      font-size: 10px; letter-spacing: 0.12em; color: var(--fg-dim);
+    }
+
     /* ── Footer ── */
     .footer {
       padding: 28px 32px;
@@ -447,8 +472,6 @@ function renderUpcoming() {
 }
 
 function renderArchiveShow(show) {
-  const allPhotos = show.poster ? [show.poster, ...(show.photos||[])] : (show.photos||[]);
-
   let spreadHtml = '';
   if (show.poster) {
     const fullList = show.artists.map((a,i) => {
@@ -460,26 +483,15 @@ function renderArchiveShow(show) {
       </div>`;
     }).join('');
 
-    // If there are photos too, show them below the lineup inside the spread
-    const photosInSpread = show.photos && show.photos.length > 0 ? `
-      <div style="margin-top:24px;">
-        <div class="spread-label">DOCUMENTATION</div>
-        <div class="doc-photos" style="grid-template-columns:repeat(${Math.min(show.photos.length,4)},1fr);">
-          ${show.photos.map((p,i)=>`<img src="${p}" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}
-        </div>
-      </div>` : '';
-
     spreadHtml = `
     <div class="archive-spread">
-      <img class="archive-poster" src="${show.poster}" onclick="lbOpen(${JSON.stringify(allPhotos)},0)" alt="${show.number} poster" />
+      <img class="archive-poster" src="${show.poster}" onclick="lbOpen(['${show.poster}'],0)" alt="${show.number} poster" />
       <div class="archive-right">
         <div class="spread-label">FULL LINEUP</div>
         ${fullList}
-        ${photosInSpread}
       </div>
     </div>`;
-  } else if (show.photos && show.photos.length > 0) {
-    // No poster — show artists + photos together
+  } else {
     const fullList = show.artists.map((a,i) => {
       const name = typeof a === 'string' ? a : a.name;
       return `<div class="lineup-item"><span class="lineup-num">${pad(i+1)}</span><span class="lineup-name">${name}</span></div>`;
@@ -490,10 +502,7 @@ function renderArchiveShow(show) {
         <div class="spread-label">ARTISTS</div>
         ${fullList}
       </div>
-      <div>
-        <div class="spread-label">DOCUMENTATION</div>
-        <div class="doc-photos" style="grid-template-columns:repeat(2,1fr);">${show.photos.map((p,i)=>`<img src="${p}" style="height:120px;" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}</div>
-      </div>
+      <div></div>
     </div>`;
   }
 
@@ -509,9 +518,30 @@ function renderArchiveShow(show) {
   </div>`;
 }
 
+function renderDocumentation() {
+  const shows = ARCHIVE.filter(s => s.photos && s.photos.length > 0);
+  if (!shows.length) return '';
+  const sections = shows.map(show => `
+    <div class="doc-section">
+      <div class="doc-section-head">
+        <span class="doc-section-title">${show.number}</span>
+        <span class="doc-section-date">${show.date}</span>
+      </div>
+      <div class="doc-photos">
+        ${show.photos.map((p,i)=>`<img src="${p}" onclick="lbOpen(${JSON.stringify(show.photos)},${i})" alt="" />`).join('')}
+      </div>
+    </div>`).join('');
+  return `
+  <div class="doc-archive">
+    <div class="doc-archive-header">DOCUMENTATION</div>
+    ${sections}
+  </div>`;
+}
+
 function renderAll() {
   let html = renderUpcoming();
   ARCHIVE.forEach(show => { html += renderArchiveShow(show); });
+  html += renderDocumentation();
   document.getElementById('shows').innerHTML = html;
 }
 
