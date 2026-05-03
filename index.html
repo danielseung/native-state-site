@@ -271,6 +271,69 @@
     }
     .footer .mid { text-align: center; }
     .footer .right { text-align: right; }
+
+    /* ── Mobile ── */
+    @media (max-width: 720px) {
+      .topbar {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 10px 18px;
+        text-align: left;
+      }
+      .topbar .center, .topbar .right { text-align: left; }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 36px 18px 32px;
+      }
+      .hero-title { font-size: 36px; }
+      .hero-desc { max-width: none; margin-bottom: 18px; }
+
+      .table-header { display: none; }
+
+      .show-meta {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 18px 18px;
+      }
+      .show-num { padding-top: 0; }
+      .show-date-col { padding-top: 0; }
+      .show-status { padding-top: 0; }
+
+      .show-spread {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        padding: 0 18px 40px;
+      }
+      .archive-spread {
+        grid-template-columns: 1fr !important;
+        gap: 24px;
+        padding: 0 18px 36px;
+      }
+      .archive-poster { max-width: 100%; }
+
+      .countdown-row { gap: 24px; }
+      .countdown-num { font-size: 32px; }
+
+      .mail-form { flex-wrap: wrap; }
+      .mail-input { width: 100%; border-right: 1px solid var(--fg-faint); }
+      .mail-btn { width: 100%; margin-top: 8px; padding: 12px; }
+
+      .doc-archive { padding: 40px 18px 36px; }
+      .doc-photos { grid-template-columns: repeat(2, 1fr) !important; }
+      .doc-photos img { height: 140px; }
+
+      .footer {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 24px 18px;
+        text-align: left;
+      }
+      .footer .mid, .footer .right { text-align: left; }
+
+      .lb-close { top: 12px; right: 16px; }
+    }
   </style>
 </head>
 <body>
