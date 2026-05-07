@@ -541,18 +541,15 @@ document.getElementById('copyLink').addEventListener('click', async () => {
 });
 
 // ---------- Firebase Realtime DB sync ----------
-// Drop your Firebase Web config in here to enable global state sync.
-//   1. https://console.firebase.google.com → Add project
-//   2. Build → Realtime Database → Create database (location: us-central1, start in TEST mode)
-//   3. Project Settings → General → Your apps → Web (</>) → Register app → copy the firebaseConfig
-//   4. Paste it below, commit, push.
-// Without a config the page works fine — just local-only.
+// Public Web config — apiKey is not a secret; security is enforced by RTDB rules.
 const FIREBASE_CONFIG = {
-  // apiKey: "...",
-  // authDomain: "YOUR-PROJECT.firebaseapp.com",
-  // databaseURL: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
-  // projectId: "YOUR-PROJECT",
-  // appId: "..."
+  apiKey: "AIzaSyCFrMyD6U7sJHYFHlOohJHSFKlMU8o--Ok",
+  authDomain: "ras-common.firebaseapp.com",
+  databaseURL: "https://ras-common-default-rtdb.firebaseio.com",
+  projectId: "ras-common",
+  storageBucket: "ras-common.firebasestorage.app",
+  messagingSenderId: "200756867763",
+  appId: "1:200756867763:web:d704fb7843528121aaf6c6"
 };
 
 const liveDot = document.getElementById('liveDot');
