@@ -165,16 +165,23 @@
       vec2 p = uv * 2.0 - 1.0;
       p.x *= aspect;
 
-      float t = uTime * uSpeed;
+      // Seamless loop: orbit a circle in noise-space so every offset
+      // returns to its start once per 1/uSpeed seconds.
+      float TAU = 6.28318530718;
+      float theta = uTime * uSpeed * TAU;
+      float orbit = 1.0;
+      vec2 t1 = vec2(sin(theta),        cos(theta))        * orbit;
+      vec2 t2 = vec2(sin(theta + 1.73), cos(theta + 1.73)) * orbit;
+      vec2 t3 = vec2(sin(theta + 3.11), cos(theta + 3.11)) * orbit;
 
       // domain warp
       vec2 q = vec2(
-        fbm(p * vec2(uFx, uFy) + vec2(0.0, t)),
-        fbm(p * vec2(uFx, uFy) + vec2(5.2, 1.3 - t))
+        fbm(p * vec2(uFx, uFy) + t1),
+        fbm(p * vec2(uFx, uFy) + vec2(5.2, 1.3) + t2)
       );
       vec2 r = vec2(
-        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(1.7, 9.2 + t * 0.5)),
-        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(8.3, 2.8 - t * 0.5))
+        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(1.7, 9.2) + t3),
+        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(8.3, 2.8) + t1)
       );
 
       // 5 weight fields
@@ -194,8 +201,9 @@
 
       vec3 col = (uC1*w1 + uC2*w2 + uC3*w3 + uC4*w4 + uC5*w5) / ws;
 
-      // grain
-      float g = (hash(gl_FragCoord.xy + fract(uTime)) - 0.5) * uAmount;
+      // grain — phase tied to the same loop so the whole frame is periodic
+      float gphase = fract(uTime * uSpeed);
+      float g = (hash(gl_FragCoord.xy + gphase) - 0.5) * uAmount;
       col += g;
 
       gl_FragColor = vec4(col, 1.0);
