@@ -132,6 +132,10 @@
     <input type="range" id="rot" min="0" max="2" step="0.01" value="0.50" />
   </div>
   <div class="slider-row">
+    <div class="top"><span>Landscape</span><span class="val" id="landVal">0.00</span></div>
+    <input type="range" id="land" min="0" max="1" step="0.01" value="0.00" />
+  </div>
+  <div class="slider-row">
     <div class="top"><span>Grain</span><span class="val" id="grainVal">0.10</span></div>
     <input type="range" id="grain" min="0" max="0.5" step="0.001" value="0.10" />
   </div>
@@ -160,7 +164,7 @@ import * as THREE from 'three';
 // ---------- state ----------
 const state = {
   c1: '#000000', c2: '#406069', c3: '#023047', c4: '#925689', c5: '#FB8500',
-  sharp: 12.0, amp: 0.20, flow: 0.80, warp: 1.00, rot: 0.50,
+  sharp: 12.0, amp: 0.20, flow: 0.80, warp: 1.00, rot: 0.50, land: 0.00,
   grain: 0.10, shade: 0.35, speed: 0.10,
 };
 
@@ -171,7 +175,7 @@ const params = new URLSearchParams(location.search);
 });
 const aliases = {
   sharp:['sharp','spread'], amp:['amp','fy','disp'], flow:['flow'],
-  warp:['warp'], rot:['rot'], grain:['grain','amount'],
+  warp:['warp'], rot:['rot'], land:['land','landscape'], grain:['grain','amount'],
   shade:['shade'], speed:['speed'],
 };
 for (const k in aliases) {
@@ -215,6 +219,7 @@ const uniforms = {
   uFlow:    { value: state.flow },
   uWarp:    { value: state.warp },
   uRot:     { value: state.rot },
+  uLand:    { value: state.land },
   uGrain:   { value: state.grain },
   uShade:   { value: state.shade },
   uC1: { value: hexToVec3(state.c1) },
@@ -230,10 +235,12 @@ const FIELD_GLSL = `
 mat2 rot2(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
 
 // Returns (weight1..5, dominantWeight) so vertex shader can use the dominant weight as height.
-void blobWeights(vec2 tuv, float theta, float sharp, float warp, float rotAmt,
+// landscape ∈ [0,1] morphs the distance metric from 2D blob → 1D vertical bands (c1 bottom, c5 top).
+void blobWeights(vec2 tuv, float theta, float sharp, float warp, float rotAmt, float landscape,
                  out float w1, out float w2, out float w3, out float w4, out float w5) {
-  // gentle rotation that returns to identity each loop
-  tuv = rot2(sin(theta) * rotAmt) * tuv;
+  // suppress rotation as we approach landscape mode (keeps the horizon level)
+  float rotEff = rotAmt * (1.0 - landscape);
+  tuv = rot2(sin(theta) * rotEff) * tuv;
 
   // wave warp — period preserved because sin args use integer multiples of theta
   tuv.x += sin(tuv.y * 5.0 + theta * 2.0) * (warp / 30.0);
@@ -246,11 +253,19 @@ void blobWeights(vec2 tuv, float theta, float sharp, float warp, float rotAmt,
   vec2 p4 = vec2(cos(theta + 3.05     ) * 0.27, sin(theta + 2.40     ) * 0.24);
   vec2 p5 = vec2(sin(theta + 4.40     ) * 0.20, cos(theta + 3.70     ) * 0.20);
 
-  float d1 = length(tuv - p1);
-  float d2 = length(tuv - p2);
-  float d3 = length(tuv - p3);
-  float d4 = length(tuv - p4);
-  float d5 = length(tuv - p5);
+  // 5 horizontal band y-anchors, c1 bottom → c5 top
+  const float by1 = -0.80;
+  const float by2 = -0.40;
+  const float by3 =  0.00;
+  const float by4 =  0.40;
+  const float by5 =  0.80;
+
+  // distance morphs from full 2D length to pure |Δy| as landscape→1
+  float d1 = mix(length(tuv - p1), abs(tuv.y - by1), landscape);
+  float d2 = mix(length(tuv - p2), abs(tuv.y - by2), landscape);
+  float d3 = mix(length(tuv - p3), abs(tuv.y - by3), landscape);
+  float d4 = mix(length(tuv - p4), abs(tuv.y - by4), landscape);
+  float d5 = mix(length(tuv - p5), abs(tuv.y - by5), landscape);
 
   w1 = 1.0 / (pow(d1, sharp) + 0.01);
   w2 = 1.0 / (pow(d2, sharp) + 0.01);
@@ -260,9 +275,9 @@ void blobWeights(vec2 tuv, float theta, float sharp, float warp, float rotAmt,
 }
 
 // Mesh height field: log of dominant weight, smoothed. Bumps lie under each blob center.
-float heightField(vec2 tuv, float theta, float sharp, float warp, float rotAmt) {
+float heightField(vec2 tuv, float theta, float sharp, float warp, float rotAmt, float landscape) {
   float w1, w2, w3, w4, w5;
-  blobWeights(tuv, theta, sharp, warp, rotAmt, w1, w2, w3, w4, w5);
+  blobWeights(tuv, theta, sharp, warp, rotAmt, landscape, w1, w2, w3, w4, w5);
   float total = w1 + w2 + w3 + w4 + w5;
   // dominance ratio: how much one blob dominates this pixel
   float top = max(max(max(max(w1, w2), w3), w4), w5);
@@ -280,6 +295,7 @@ uniform float uSharp;
 uniform float uFlow;
 uniform float uWarp;
 uniform float uRot;
+uniform float uLand;
 uniform float uAspect;
 
 varying vec2 vBaseTuv;
@@ -288,7 +304,7 @@ varying vec3 vNormal;
 
 float disp(vec2 tuv, float theta) {
   // a softer, smoother variant for displacement (lower sharp keeps mesh from spiking)
-  return heightField(tuv, theta, max(uSharp * 0.35, 1.5), uWarp, uRot);
+  return heightField(tuv, theta, max(uSharp * 0.35, 1.5), uWarp, uRot, uLand);
 }
 
 void main() {
@@ -338,6 +354,7 @@ uniform float uSharp;
 uniform float uFlow;
 uniform float uWarp;
 uniform float uRot;
+uniform float uLand;
 uniform float uGrain;
 uniform float uShade;
 uniform vec3 uC1, uC2, uC3, uC4, uC5;
@@ -354,7 +371,7 @@ float hash21(vec2 p) {
 
 vec3 sampleField(vec2 tuv, float theta) {
   float w1, w2, w3, w4, w5;
-  blobWeights(tuv, theta, uSharp, uWarp, uRot, w1, w2, w3, w4, w5);
+  blobWeights(tuv, theta, uSharp, uWarp, uRot, uLand, w1, w2, w3, w4, w5);
   float total = w1 + w2 + w3 + w4 + w5;
   return (uC1*w1 + uC2*w2 + uC3*w3 + uC4*w4 + uC5*w5) / total;
 }
@@ -415,10 +432,10 @@ resize();
 addEventListener('resize', resize);
 
 // ---------- UI wiring ----------
-const sliders = ['sharp','amp','flow','warp','rot','grain','shade','speed'];
+const sliders = ['sharp','amp','flow','warp','rot','land','grain','shade','speed'];
 const labelIds = {
   sharp:'sharpVal', amp:'ampVal', flow:'flowVal', warp:'warpVal',
-  rot:'rotVal', grain:'grainVal', shade:'shadeVal', speed:'speedVal',
+  rot:'rotVal', land:'landVal', grain:'grainVal', shade:'shadeVal', speed:'speedVal',
 };
 const fmt = (k, v) => (k === 'grain') ? v.toFixed(3) : (k === 'sharp' ? v.toFixed(1) : v.toFixed(2));
 
@@ -475,6 +492,7 @@ function pushUniforms() {
   uniforms.uFlow.value  = state.flow;
   uniforms.uWarp.value  = state.warp;
   uniforms.uRot.value   = state.rot;
+  uniforms.uLand.value  = state.land;
   uniforms.uGrain.value = state.grain;
   uniforms.uShade.value = state.shade;
   uniforms.uSpeed.value = state.speed;
@@ -526,7 +544,7 @@ document.getElementById('randomize').addEventListener('click', () => {
   state.warp  = +(0.20 + Math.random() * 1.6).toFixed(2);
   state.rot   = +(0.20 + Math.random() * 1.0).toFixed(2);
   syncInputs(false); pushUniforms();
-  onLocalEdit(['c1','c2','c3','c4','c5','sharp','amp','flow','warp','rot']);
+  onLocalEdit(['c1','c2','c3','c4','c5','sharp','amp','flow','warp','rot','land']);
 });
 
 document.getElementById('copyLink').addEventListener('click', async () => {
