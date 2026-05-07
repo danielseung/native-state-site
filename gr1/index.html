@@ -27,6 +27,10 @@
   #toggle svg { width: 18px; height: 18px; transition: transform 0.3s ease; }
   body.menu-open #toggle svg { transform: rotate(90deg); }
 
+  /* Click-anywhere toggle for UI visibility */
+  #toggle { transition: transform 0.2s ease, background 0.2s ease, opacity 0.3s ease; }
+  body.ui-hidden #toggle { opacity: 0; pointer-events: none; }
+
   #panel {
     position: fixed; top: 68px; right: 16px; z-index: 9;
     width: 260px; padding: 16px;
@@ -67,6 +71,20 @@
     border: 1px solid var(--panel-border); border-radius: 8px; cursor: pointer;
   }
   .actions button:hover { background: rgba(255,255,255,0.12); }
+
+  .live-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--panel-muted); }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #555; box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+  .live-dot.live { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.6); }
+  .live-dot.error { background: #f87171; }
+
+  /* Responsive panel for phones */
+  @media (max-width: 520px) {
+    #panel { width: auto; left: 12px; right: 12px; top: 64px; padding: 14px; }
+    #toggle { top: 12px; right: 12px; }
+  }
+  @media (max-height: 640px) {
+    #panel { max-height: calc(100vh - 80px); }
+  }
 </style>
 </head>
 <body>
@@ -80,6 +98,7 @@
 </button>
 
 <aside id="panel">
+  <div class="live-row"><span id="liveDot" class="live-dot"></span><span id="liveLabel">offline</span></div>
   <div class="section">Colors</div>
   <div class="colors">
     <input type="color" id="c1" value="#000000" />
@@ -173,8 +192,9 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
 camera.position.set(0, 0, 2);
 camera.lookAt(0, 0, 0);
 
-// High-res plane so vertex displacement reads smoothly.
-const SEG = 256;
+// Adaptive plane resolution — phones get fewer verts, big screens get more.
+const minDim0 = Math.min(innerWidth, innerHeight);
+const SEG = minDim0 < 480 ? 96 : (minDim0 < 800 ? 160 : 256);
 const geometry = new THREE.PlaneGeometry(2, 2, SEG, SEG);
 
 const hexToVec3 = (hex) => {
@@ -402,14 +422,47 @@ const labelIds = {
 };
 const fmt = (k, v) => (k === 'grain') ? v.toFixed(3) : (k === 'sharp' ? v.toFixed(1) : v.toFixed(2));
 
-function syncInputs() {
-  for (const k of ['c1','c2','c3','c4','c5']) document.getElementById(k).value = state[k];
+function syncInputs(respectLocks) {
+  for (const k of ['c1','c2','c3','c4','c5']) {
+    if (respectLocks && isLocked(k)) continue;
+    document.getElementById(k).value = state[k];
+  }
   for (const k of sliders) {
+    if (respectLocks && isLocked(k)) continue;
     document.getElementById(k).value = state[k];
     document.getElementById(labelIds[k]).textContent = fmt(k, +state[k]);
   }
 }
-syncInputs();
+
+// ---------- realtime sync (locks + throttled broadcast) ----------
+const lockUntil = {};
+const isLocked = (k) => (lockUntil[k] || 0) > performance.now();
+const lock = (k) => { lockUntil[k] = performance.now() + 600; };
+
+let dbRef = null, dbUpdate = null, dbSet = null;
+let writeTimer = null;
+const pendingWrite = {};
+
+function broadcast(updates) {
+  Object.assign(pendingWrite, updates);
+  if (!dbRef || writeTimer) return;
+  writeTimer = setTimeout(() => {
+    if (Object.keys(pendingWrite).length) {
+      dbUpdate(dbRef, { ...pendingWrite }).catch(() => {});
+    }
+    for (const k in pendingWrite) delete pendingWrite[k];
+    writeTimer = null;
+  }, 80);
+}
+
+function onLocalEdit(keys) {
+  const arr = Array.isArray(keys) ? keys : [keys];
+  const u = {};
+  for (const k of arr) { lock(k); u[k] = state[k]; }
+  broadcast(u);
+}
+
+syncInputs(false);
 
 function pushUniforms() {
   uniforms.uC1.value.copy(hexToVec3(state.c1));
@@ -430,7 +483,11 @@ pushUniforms();
 
 for (const k of ['c1','c2','c3','c4','c5']) {
   const el = document.getElementById(k);
-  el.addEventListener('input', () => { state[k] = el.value; pushUniforms(); });
+  el.addEventListener('input', () => {
+    state[k] = el.value;
+    pushUniforms();
+    onLocalEdit(k);
+  });
 }
 for (const k of sliders) {
   const el = document.getElementById(k);
@@ -439,11 +496,25 @@ for (const k of sliders) {
     state[k] = parseFloat(el.value);
     lab.textContent = fmt(k, state[k]);
     pushUniforms();
+    onLocalEdit(k);
   });
 }
 
-document.getElementById('toggle').addEventListener('click', () => {
+document.getElementById('toggle').addEventListener('click', (e) => {
+  e.stopPropagation();
   document.body.classList.toggle('menu-open');
+});
+
+// Clicking anywhere on the canvas toggles the gear icon visibility.
+// (Clicks inside the panel or on the gear itself are ignored.)
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#panel') || e.target.closest('#toggle')) return;
+  if (document.body.classList.contains('ui-hidden')) {
+    document.body.classList.remove('ui-hidden');
+  } else {
+    document.body.classList.add('ui-hidden');
+    document.body.classList.remove('menu-open');
+  }
 });
 
 document.getElementById('randomize').addEventListener('click', () => {
@@ -454,7 +525,8 @@ document.getElementById('randomize').addEventListener('click', () => {
   state.flow  = +(0.30 + Math.random() * 1.5).toFixed(2);
   state.warp  = +(0.20 + Math.random() * 1.6).toFixed(2);
   state.rot   = +(0.20 + Math.random() * 1.0).toFixed(2);
-  syncInputs(); pushUniforms();
+  syncInputs(false); pushUniforms();
+  onLocalEdit(['c1','c2','c3','c4','c5','sharp','amp','flow','warp','rot']);
 });
 
 document.getElementById('copyLink').addEventListener('click', async () => {
@@ -467,6 +539,66 @@ document.getElementById('copyLink').addEventListener('click', async () => {
   const orig = btn.textContent; btn.textContent = 'Copied';
   setTimeout(() => btn.textContent = orig, 1200);
 });
+
+// ---------- Firebase Realtime DB sync ----------
+// Drop your Firebase Web config in here to enable global state sync.
+//   1. https://console.firebase.google.com → Add project
+//   2. Build → Realtime Database → Create database (location: us-central1, start in TEST mode)
+//   3. Project Settings → General → Your apps → Web (</>) → Register app → copy the firebaseConfig
+//   4. Paste it below, commit, push.
+// Without a config the page works fine — just local-only.
+const FIREBASE_CONFIG = {
+  // apiKey: "...",
+  // authDomain: "YOUR-PROJECT.firebaseapp.com",
+  // databaseURL: "https://YOUR-PROJECT-default-rtdb.firebaseio.com",
+  // projectId: "YOUR-PROJECT",
+  // appId: "..."
+};
+
+const liveDot = document.getElementById('liveDot');
+const liveLabel = document.getElementById('liveLabel');
+
+if (FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.apiKey) {
+  try {
+    const fbApp = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js');
+    const fbDb  = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js');
+    const app = fbApp.initializeApp(FIREBASE_CONFIG);
+    const db = fbDb.getDatabase(app);
+    dbRef    = fbDb.ref(db, 'gr1/state');
+    dbUpdate = fbDb.update;
+    dbSet    = fbDb.set;
+
+    fbDb.onValue(dbRef, (snap) => {
+      const remote = snap.val();
+      if (!remote) {
+        // Empty DB — seed it with current local state so other clients have something to read.
+        dbSet(dbRef, { ...state }).catch(() => {});
+        return;
+      }
+      let dirty = false;
+      for (const k of Object.keys(state)) {
+        if (k in remote && !isLocked(k) && state[k] !== remote[k]) {
+          state[k] = remote[k];
+          dirty = true;
+        }
+      }
+      if (dirty) { syncInputs(true); pushUniforms(); }
+    }, (err) => {
+      console.warn('RTDB read error', err);
+      liveDot.classList.remove('live'); liveDot.classList.add('error');
+      liveLabel.textContent = 'sync error';
+    });
+
+    liveDot.classList.add('live');
+    liveLabel.textContent = 'live';
+  } catch (e) {
+    console.warn('Firebase init failed', e);
+    liveDot.classList.add('error');
+    liveLabel.textContent = 'sync error';
+  }
+} else {
+  liveLabel.textContent = 'local only';
+}
 
 // ---------- render loop ----------
 const t0 = performance.now();
