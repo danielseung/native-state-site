@@ -10,7 +10,6 @@
     --panel-fg: #f4f4f4;
     --panel-muted: #9a9a9a;
     --panel-border: rgba(255,255,255,0.08);
-    --accent: #f4f4f4;
   }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--panel-fg); }
   canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
@@ -55,9 +54,20 @@
     transition: background 0.15s ease, border-color 0.15s ease;
   }
   .patterns button:hover { background: rgba(255,255,255,0.10); }
-  .patterns button.active { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.55); }
+  .patterns button.active { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.6); }
   .patterns button .num { font-size: 14px; font-weight: 500; opacity: 0.85; }
   .patterns button .nm  { font-size: 9px; opacity: 0.55; text-transform: uppercase; }
+
+  .all-row { margin-top: 8px; }
+  .all-row button {
+    width: 100%; aspect-ratio: auto; padding: 10px;
+    background: rgba(255,255,255,0.04); color: var(--panel-fg);
+    border: 1px solid var(--panel-border); border-radius: 8px; cursor: pointer;
+    font-family: inherit; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .all-row button:hover { background: rgba(255,255,255,0.10); }
+  .all-row button.active { background: rgba(74,222,128,0.18); border-color: rgba(74,222,128,0.6); color: #b8f5cb; }
 
   .slider-row { display: block; margin: 12px 0; font-size: 12px; }
   .slider-row .top { display: flex; justify-content: space-between; color: var(--panel-muted); letter-spacing: 0.06em; text-transform: uppercase; }
@@ -88,12 +98,15 @@
 <aside id="panel">
   <div class="section">Pattern</div>
   <div class="patterns">
-    <button data-p="0"><span class="num">01</span><span class="nm">Data Rows</span></button>
-    <button data-p="1"><span class="num">02</span><span class="nm">Dashes</span></button>
-    <button data-p="2"><span class="num">03</span><span class="nm">Chroma</span></button>
-    <button data-p="3"><span class="num">04</span><span class="nm">Ikeda</span></button>
-    <button data-p="4"><span class="num">05</span><span class="nm">Barcode</span></button>
-    <button data-p="5"><span class="num">06</span><span class="nm">Scan</span></button>
+    <button data-p="0"><span class="num">01</span><span class="nm">Cell Drift</span></button>
+    <button data-p="1"><span class="num">02</span><span class="nm">Pulse Rings</span></button>
+    <button data-p="2"><span class="num">03</span><span class="nm">Chroma RGB</span></button>
+    <button data-p="3"><span class="num">04</span><span class="nm">Ikeda Grid</span></button>
+    <button data-p="4"><span class="num">05</span><span class="nm">Spectrum</span></button>
+    <button data-p="5"><span class="num">06</span><span class="nm">Cross Scan</span></button>
+  </div>
+  <div class="all-row">
+    <button id="allBtn">Loop All</button>
   </div>
 
   <hr />
@@ -109,6 +122,10 @@
   <div class="slider-row">
     <div class="top"><span>Loop (s)</span><span class="val" id="loopVal">6.00</span></div>
     <input type="range" id="loop" min="2" max="20" step="0.1" value="6.0" />
+  </div>
+  <div class="slider-row">
+    <div class="top"><span>Cycle (s)</span><span class="val" id="cycleVal">8.00</span></div>
+    <input type="range" id="cycle" min="2" max="30" step="0.5" value="8.0" />
   </div>
   <div class="slider-row">
     <div class="top"><span>Invert</span><span class="val" id="invVal">0</span></div>
@@ -127,22 +144,23 @@
     void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
   `;
 
-  // Six seamless test patterns. The page-wide loop period is uLoop seconds;
-  // looped = fract(uTime / uLoop) goes 0→1 then resets, and every pattern is
-  // designed so its visual state at looped=1 equals its state at looped=0.
+  // Six visually-distinct seamless test patterns plus crossfade for "loop all".
+  // Per-loop period is uLoop seconds.  looped = fract(uTime/uLoop * uSpeed).
+  // Each pattern is constructed so its visual content at looped=1 equals looped=0.
   const FRAG = `
     precision highp float;
     uniform vec2  uRes;
     uniform float uTime;
-    uniform float uLoop;     // loop period in seconds
-    uniform float uSpeed;    // global speed multiplier
-    uniform float uDens;     // pattern density (rows / cols / etc)
-    uniform float uInv;      // 0 or 1 — invert output
+    uniform float uLoop;
+    uniform float uSpeed;
+    uniform float uDens;
+    uniform float uInv;
     uniform int   uPattern;
+    uniform int   uPatternNext;
+    uniform float uMix;          // 0..1 crossfade between current and next
 
     const float TAU = 6.28318530718;
 
-    // ---------- hashes & noise ----------
     float hash11(float p) {
       p = fract(p * 0.1031);
       p *= p + 33.33;
@@ -154,166 +172,190 @@
       p += dot(p, p + 45.32);
       return fract(p.x * p.y);
     }
-    float vnoise(vec2 p) {
-      vec2 i = floor(p), f = fract(p);
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(mix(hash21(i),            hash21(i + vec2(1,0)), u.x),
-                 mix(hash21(i + vec2(0,1)), hash21(i + vec2(1,1)), u.x), u.y);
-    }
 
-    // ---------- shared "stripe func" used by patterns 02 & 03 ----------
-    // Tweaked from the ref: integer multipliers of theta keep it seamless.
-    float sfunc(float t, float theta) {
-      return (sin(t * 53.0 + theta * 8.0)
-            + sin(t * 61.0 + theta * 9.0)
-            + t * 13.313) * 0.8;
-    }
-    float sfunc2(vec2 t, float theta) {
-      return sfunc(t.x + 8.5463 * t.y, theta);
-    }
-
-    // logichroma-ish palette (cosine palette à la IQ)
-    vec3 logichroma(float t) {
-      return 0.5 + 0.5 * cos(TAU * (vec3(1.0) * t + vec3(0.0, 0.33, 0.67)));
-    }
-
-    // ---------- pattern 0: scrolling data rows (refs 1+2) ----------
-    // Each row picks its own scroll speed from a hash. Seamless via dual-sample
-    // crossfade on the value-noise field.
+    // ---------- 01 — Cell Drift ----------
+    // Vertical column scroll, blocky cells.  Each column has a per-column
+    // integer scroll-speed multiplier and the cell field is periodic with
+    // period = CELLS_PER_LOOP, so every column wraps to its starting state
+    // exactly once per loop.  Fully discrete — no smooth fade artifacts.
     vec3 pattern0(vec2 frag) {
       float looped = fract(uTime / uLoop * uSpeed);
-      // vertical compression like /vec2(1,8) in the ref
-      float rowDiv = 8.0 * uDens;
-      float rows = uRes.y / rowDiv;        // visual row count
-      float row  = floor(frag.y / rowDiv);
-      float rowSpeed = hash11(row * 1.7) * 0.9 + 0.15;        // 0.15 .. 1.05
-      float rowMul   = hash11(row * 0.31 + 7.7) * 0.7 + 0.4;  // 0.4 .. 1.1
+      vec2 uv = frag / uRes;
+      float colsN  = 56.0 * uDens;
+      float rowsV  = 80.0 * uDens;          // visible cells vertically
+      float cellsP = 32.0;                  // periodic cell count per loop
 
-      float u = (frag.x / uRes.x) * rowMul;
+      float colIdx = floor(uv.x * colsN);
+      float colSpd = floor(hash11(colIdx) * 4.0) + 1.0;   // 1..4
+      float dim    = hash11(colIdx + 9.1) * 0.45 + 0.55;  // 0.55..1.0
 
-      // dual-sample crossfade so the scrolling closes its loop
-      float drift = looped * 4.0 * rowSpeed;
-      vec2 sa = vec2(u + drift,         row * 0.37);
-      vec2 sb = vec2(u + drift - 4.0 * rowSpeed, row * 0.37);
-      float n = mix(vnoise(sa * 6.0), vnoise(sb * 6.0), looped);
+      float rowF = uv.y * rowsV - looped * colSpd * cellsP;
+      float rowIdx = mod(floor(rowF), cellsP);
+      float bit = step(0.55, hash11(colIdx * 0.31 + rowIdx * 7.31));
 
-      // dashed binary plus sparse separator lines every ~256 visual sub-rows
-      float bit = step(0.5, fract(n * 1.7 + looped * 0.5));
-      float sep = step(fract(frag.y * 0.25 / rowDiv), 0.06);
-      return vec3(max(bit, sep));
+      // tiny gap between cells for blocky aesthetic
+      float colGap = step(0.05, fract(uv.x * colsN)) * step(fract(uv.x * colsN), 0.95);
+      float rowGap = step(0.06, fract(rowF)) * step(fract(rowF), 0.94);
+
+      return vec3(bit * dim * colGap * rowGap);
     }
 
-    // ---------- pattern 1: mathematical dashes (ref 3, tweaked) ----------
+    // ---------- 02 — Pulse Rings ----------
+    // Concentric rings sweeping outward + rotating angular spokes.
+    // Phase wraps via fract; spoke rotation closes after exactly one loop.
     vec3 pattern1(vec2 frag) {
       float theta = fract(uTime / uLoop * uSpeed) * TAU;
-      vec2 uv = frag / uRes;
-      float rowsN = 12.0 * uDens;
-      float v = sfunc2(vec2(uv.x * 0.5, floor(uv.y * rowsN)), theta);
-      float f = fract(v + theta * 3.0 / TAU); // theta*3/TAU is integer cycles → fract wraps
-      float on  = step(0.82, f);
-      float gap = step(0.30, fract(uv.y * rowsN + 0.18));
-      return vec3(on * gap);
+      vec2 uv = (frag - 0.5 * uRes) / min(uRes.x, uRes.y) * 2.0;
+      float r = length(uv);
+      float ang = atan(uv.y, uv.x);
+
+      float ringFreq = 11.0 * uDens;
+      float ringIdx  = floor(r * ringFreq);
+      float morse    = step(0.40, hash11(ringIdx));
+      float ringPh   = fract(r * ringFreq - theta / TAU);   // sweeps outward
+      float ring     = step(ringPh, 0.30) * morse;
+
+      // 4 rotating spokes — full revolution per loop ⇒ seamless
+      float spokes = step(0.93, abs(sin(2.0 * (ang + theta))));
+
+      // central pulse dot
+      float dot = smoothstep(0.04, 0.0, r) * (0.5 + 0.5 * sin(theta * 2.0));
+
+      return vec3(max(max(ring, spokes), dot));
     }
 
-    // ---------- pattern 2: chroma layered recursive (ref 4, tweaked) ----------
+    // ---------- 03 — Chroma RGB ----------
+    // Five chromatic concentric rings, each radially offset slightly so the
+    // colors pull apart like a chromatic aberration ripple.
     vec3 pattern2(vec2 frag) {
       float theta = fract(uTime / uLoop * uSpeed) * TAU;
-      vec2 uv = frag / uRes - 0.5;
+      vec2 uv = (frag - 0.5 * uRes) / min(uRes.x, uRes.y) * 2.0;
+      float r = length(uv);
+      float ringF = 14.0 * uDens;
+
       vec3 acc = vec3(0.0);
-      const int LAYERS = 64;
-      float rowsN = 18.0 * uDens;
-      for (int i = 0; i < LAYERS; i++) {
+      for (int i = 0; i < 5; i++) {
         float fi = float(i);
-        float v = sfunc2(vec2(uv.x * 0.5, floor(uv.y * rowsN + 0.5)), theta);
-        float f = fract(v + theta * 3.0 / TAU);
-        float pat = step(0.7, f) * step(0.3, fract(uv.y * rowsN + 0.65));
-        vec3 col = logichroma(1.0 - fi / float(LAYERS));
-        float a = 1.0 - fi / float(LAYERS);
-        acc += pat * col * a;
-        uv *= 0.992;
+        float chrom = (fi - 2.0) * 0.014;
+        float ph = fract(r * ringF - theta / TAU + chrom);
+        float ring = smoothstep(0.55, 0.45, ph) * smoothstep(0.0, 0.06, ph);
+        vec3 cc;
+        if      (i == 0) cc = vec3(1.0, 0.18, 0.18);
+        else if (i == 1) cc = vec3(1.0, 0.78, 0.10);
+        else if (i == 2) cc = vec3(0.20, 1.0, 0.45);
+        else if (i == 3) cc = vec3(0.20, 0.55, 1.0);
+        else             cc = vec3(0.85, 0.20, 1.0);
+        acc += ring * cc;
       }
-      acc *= 0.04;
-      return 1.0 - acc;
+
+      // subtle center-out radial scan dimming
+      float scan = 0.5 + 0.5 * sin(r * ringF * 0.4 + theta);
+      acc *= 0.55 + 0.45 * scan;
+      return acc;
     }
 
-    // ---------- pattern 3: Ikeda RGB random series (ref 5, tweaked) ----------
-    // Seamless via floor(looped * STEPS): 24 distinct "frames" per loop,
-    // and the frame at the end of the loop is followed by frame 0 of next loop
-    // — visually identical because the pattern is defined per-frame-id.
+    // ---------- 04 — Ikeda Grid ----------
+    // 2-D grid of cells.  Each frame index toggles a per-cell hash; the R/G/B
+    // channels read that hash at three slightly-offset frame indices, giving
+    // chromatic strobe on a square grid.
     vec3 pattern3(vec2 frag) {
       float looped = fract(uTime / uLoop * uSpeed);
-      vec2 st = frag / uRes;
-      st.x *= uRes.x / uRes.y;
+      vec2 uv = frag / uRes;
+      uv.x *= uRes.x / uRes.y;
 
-      float STEPS = 24.0;
-      float frame = floor(looped * STEPS); // 0..23, repeats each loop
+      float STEPS = 32.0;
+      float fr = floor(looped * STEPS);  // 0..31, repeats each loop
 
-      // column count grows from 1 → 20 across each loop
-      float cols = floor(1.0 + 19.0 * (frame / STEPS) * uDens);
+      float gridN = 26.0 * uDens;
+      vec2 cell = floor(uv * gridN);
+      float cellId = hash21(cell + 17.3);
 
-      float freq = hash11(frame) + abs(atan(frame * 0.5 - 6.0)) * 0.05;
-      float t    = frame * (1.0 - freq) * 30.0;
+      float r = step(0.62, hash11(cellId * 19.13 + mod(fr +  0.0, STEPS)));
+      float g = step(0.62, hash11(cellId * 19.13 + mod(fr + 11.0, STEPS)));
+      float b = step(0.62, hash11(cellId * 19.13 + mod(fr + 23.0, STEPS)));
 
-      if (fract(st.x * cols * 0.5) < 0.5) {
-        t *= -hash11(frame + 13.0) - 0.2;
-      }
-      freq += hash11(floor(st.y * 220.0));
-
-      float offset = 0.25;
-      float r = step(0.78, hash11(floor(st.y * freq * 100.0) - floor(t + offset)));
-      float g = step(0.78, hash11(floor(st.y * freq * 100.0) - floor(t)));
-      float b = step(0.78, hash11(floor(st.y * freq * 100.0) - floor(t - offset)));
-      return vec3(r, g, b);
+      // cell gutter so grid is readable
+      vec2 cf = fract(uv * gridN);
+      float cellMask = step(0.04, cf.x) * step(cf.x, 0.96) *
+                       step(0.04, cf.y) * step(cf.y, 0.96);
+      return vec3(r, g, b) * cellMask;
     }
 
-    // ---------- pattern 4: pulsing barcode columns (new in style) ----------
+    // ---------- 05 — Spectrum ----------
+    // Audio-spectrum-analyzer look: per-bar height = sum of three sine
+    // harmonics, all with integer multipliers of theta ⇒ closes per loop.
     vec3 pattern4(vec2 frag) {
       float theta = fract(uTime / uLoop * uSpeed) * TAU;
       vec2 uv = frag / uRes;
-      float cols = 64.0 * uDens;
-      float col = floor(uv.x * cols);
-      // each column has a width based on hash; pulses periodically
-      float w = hash11(col) * 0.45 + 0.10;
-      float phase = hash11(col + 9.91) * TAU;
-      // pulse in & out with sin(theta) — closes per loop
-      float pulse = 0.5 + 0.5 * sin(theta + phase);
-      float local = fract(uv.x * cols);
-      float bar = step(local, w * pulse);
+      float bars = 64.0 * uDens;
+      float idx  = floor(uv.x * bars);
+      float inn  = fract(uv.x * bars);
 
-      // every 8 cols, a thicker tick from top
-      float tickRow = step(uv.y, 0.04 + 0.18 * step(fract(col / 8.0), 0.001));
-      return vec3(max(bar, tickRow));
+      float h = 0.0;
+      h += 0.55 + 0.45 * sin(theta * 1.0 + idx * 0.21);
+      h += 0.30 * (0.5 + 0.5 * sin(theta * 2.0 + idx * 0.39 + 1.7));
+      h += 0.18 * (0.5 + 0.5 * sin(theta * 3.0 + idx * 0.71 + 3.1));
+      h /= 1.6;
+      h = clamp(h * 0.85, 0.0, 1.0);
+
+      // bar lit from bottom up to height h, with vertical gutters
+      float bar = step(uv.y, h)
+                * step(0.06, inn) * step(inn, 0.94);
+
+      // peak indicator: thin line at top of bar
+      float peak = step(abs(uv.y - h), 0.005)
+                 * step(0.06, inn) * step(inn, 0.94);
+
+      // baseline at uv.y near 0
+      float baseline = step(uv.y, 0.008);
+
+      // gridline horizontals every 0.2
+      float gridY = step(fract(uv.y * 5.0), 0.02) * 0.18;
+
+      return vec3(max(max(bar * 0.85 + peak, baseline), gridY));
     }
 
-    // ---------- pattern 5: diagonal scanlines (new) ----------
+    // ---------- 06 — Cross Scan ----------
+    // Two diagonal scan-line systems crossing each other; both wrap one full
+    // cell per loop via fract(), invisible at the boundary.
     vec3 pattern5(vec2 frag) {
       float theta = fract(uTime / uLoop * uSpeed) * TAU;
       vec2 uv = frag / uRes;
-      float lines = 24.0 * uDens;
-      float angle = 0.30;
-      float p = uv.x * cos(angle) + uv.y * sin(angle);
-      // shift by exactly one cell per loop → invisible wrap thanks to fract
-      float ph = fract(p * lines + theta / TAU);
-      float thick = 0.18 + 0.10 * sin(theta * 2.0); // breathes; integer multiplier ⇒ seamless
-      float line = step(ph, thick);
+      uv.x *= uRes.x / uRes.y;
 
-      // crosshatch at low opacity
-      float p2 = uv.x * cos(angle + 1.5708) + uv.y * sin(angle + 1.5708);
-      float ph2 = fract(p2 * lines * 0.5 - theta / TAU);
-      float line2 = step(ph2, 0.08) * 0.5;
+      float lines = 22.0 * uDens;
+      float a1 = 0.30, a2 = 0.30 + 1.5708;
 
-      return vec3(max(line, line2));
+      float p1 = uv.x * cos(a1) + uv.y * sin(a1);
+      float p2 = uv.x * cos(a2) + uv.y * sin(a2);
+
+      float ph1 = fract(p1 * lines + theta / TAU);
+      float ph2 = fract(p2 * lines * 0.7 - theta / TAU);
+
+      float th  = 0.16 + 0.06 * sin(theta * 2.0);  // breathing thickness
+      float l1  = step(ph1, th);
+      float l2  = step(ph2, th * 0.6);
+
+      // intersection brighter
+      float inter = l1 * l2 * 0.6;
+      return vec3(max(max(l1, l2), inter));
+    }
+
+    vec3 renderPattern(int p, vec2 frag) {
+      if      (p == 0) return pattern0(frag);
+      else if (p == 1) return pattern1(frag);
+      else if (p == 2) return pattern2(frag);
+      else if (p == 3) return pattern3(frag);
+      else if (p == 4) return pattern4(frag);
+      else             return pattern5(frag);
     }
 
     void main() {
-      vec3 col;
-      if      (uPattern == 0) col = pattern0(gl_FragCoord.xy);
-      else if (uPattern == 1) col = pattern1(gl_FragCoord.xy);
-      else if (uPattern == 2) col = pattern2(gl_FragCoord.xy);
-      else if (uPattern == 3) col = pattern3(gl_FragCoord.xy);
-      else if (uPattern == 4) col = pattern4(gl_FragCoord.xy);
-      else                    col = pattern5(gl_FragCoord.xy);
-
+      vec3 col = renderPattern(uPattern, gl_FragCoord.xy);
+      if (uMix > 0.001) {
+        vec3 nx = renderPattern(uPatternNext, gl_FragCoord.xy);
+        col = mix(col, nx, smoothstep(0.0, 1.0, uMix));
+      }
       if (uInv > 0.5) col = 1.0 - col;
       gl_FragColor = vec4(col, 1.0);
     }
@@ -343,30 +385,38 @@
   gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
   const u = {
-    res:     gl.getUniformLocation(prog, 'uRes'),
-    time:    gl.getUniformLocation(prog, 'uTime'),
-    loop:    gl.getUniformLocation(prog, 'uLoop'),
-    speed:   gl.getUniformLocation(prog, 'uSpeed'),
-    dens:    gl.getUniformLocation(prog, 'uDens'),
-    inv:     gl.getUniformLocation(prog, 'uInv'),
-    pattern: gl.getUniformLocation(prog, 'uPattern'),
+    res:         gl.getUniformLocation(prog, 'uRes'),
+    time:        gl.getUniformLocation(prog, 'uTime'),
+    loop:        gl.getUniformLocation(prog, 'uLoop'),
+    speed:       gl.getUniformLocation(prog, 'uSpeed'),
+    dens:        gl.getUniformLocation(prog, 'uDens'),
+    inv:         gl.getUniformLocation(prog, 'uInv'),
+    pattern:     gl.getUniformLocation(prog, 'uPattern'),
+    patternNext: gl.getUniformLocation(prog, 'uPatternNext'),
+    mix:         gl.getUniformLocation(prog, 'uMix'),
   };
+
+  const NUM_PATTERNS = 6;
+  const FADE_T = 0.6; // crossfade duration in seconds
 
   const state = {
     pattern: 0,
     speed: 1.0,
     dens: 1.0,
     loop: 6.0,
+    cycle: 8.0,
     inv: 0,
+    cycleAll: false,
   };
 
-  // URL params
   const params = new URLSearchParams(location.search);
-  if (params.has('p'))     state.pattern = Math.max(0, Math.min(5, parseInt(params.get('p'))));
+  if (params.has('p'))     state.pattern = Math.max(0, Math.min(NUM_PATTERNS-1, parseInt(params.get('p'))));
   if (params.has('speed')) state.speed = parseFloat(params.get('speed'));
   if (params.has('dens'))  state.dens  = parseFloat(params.get('dens'));
   if (params.has('loop'))  state.loop  = parseFloat(params.get('loop'));
+  if (params.has('cycle')) state.cycle = parseFloat(params.get('cycle'));
   if (params.has('inv'))   state.inv   = parseInt(params.get('inv')) ? 1 : 0;
+  if (params.has('all'))   state.cycleAll = parseInt(params.get('all')) ? true : false;
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -377,17 +427,28 @@
   resize();
   addEventListener('resize', resize);
 
-  // ---------- UI ----------
   const buttons = document.querySelectorAll('.patterns button');
+  function refreshButtons() {
+    buttons.forEach(b => b.classList.toggle('active', +b.dataset.p === state.pattern && !state.cycleAll));
+    document.getElementById('allBtn').classList.toggle('active', state.cycleAll);
+  }
   function setPattern(i) {
     state.pattern = i;
-    buttons.forEach(b => b.classList.toggle('active', +b.dataset.p === i));
+    state.cycleAll = false;
+    cyclePos = 0;
+    refreshButtons();
   }
   buttons.forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
     setPattern(+b.dataset.p);
   }));
-  setPattern(state.pattern);
+  document.getElementById('allBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.cycleAll = !state.cycleAll;
+    cyclePos = 0;
+    refreshButtons();
+  });
+  refreshButtons();
 
   function bindSlider(id, key, fmt) {
     const el = document.getElementById(id);
@@ -402,6 +463,7 @@
   bindSlider('speed', 'speed', v => v.toFixed(2));
   bindSlider('dens',  'dens',  v => v.toFixed(2));
   bindSlider('loop',  'loop',  v => v.toFixed(2));
+  bindSlider('cycle', 'cycle', v => v.toFixed(2));
   bindSlider('inv',   'inv',   v => String(v));
 
   document.getElementById('toggle').addEventListener('click', (e) => {
@@ -409,7 +471,6 @@
     document.body.classList.toggle('menu-open');
   });
 
-  // Click anywhere on the canvas hides the gear icon; click again restores.
   document.addEventListener('click', (e) => {
     if (e.target.closest('#panel') || e.target.closest('#toggle')) return;
     if (document.body.classList.contains('ui-hidden')) {
@@ -420,23 +481,62 @@
     }
   });
 
-  // Number keys 1–6 switch patterns
+  // Keys: 1-6 pick pattern, 0 toggles loop-all
   addEventListener('keydown', (e) => {
     const n = parseInt(e.key);
-    if (n >= 1 && n <= 6) setPattern(n - 1);
+    if (n >= 1 && n <= NUM_PATTERNS) setPattern(n - 1);
+    else if (e.key === '0') {
+      state.cycleAll = !state.cycleAll;
+      cyclePos = 0;
+      refreshButtons();
+    }
   });
 
   // ---------- render loop ----------
+  let cyclePos = 0;
+  let lastTime = performance.now();
   const t0 = performance.now();
+
   function frame() {
-    const t = (performance.now() - t0) / 1000;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - lastTime) / 1000);
+    lastTime = now;
+    const t = (now - t0) / 1000;
+
+    let curPattern = state.pattern;
+    let nextPattern = state.pattern;
+    let mix = 0;
+
+    if (state.cycleAll) {
+      const cycle = Math.max(FADE_T + 0.5, state.cycle);
+      cyclePos += dt;
+      while (cyclePos >= cycle) {
+        cyclePos -= cycle;
+        state.pattern = (state.pattern + 1) % NUM_PATTERNS;
+      }
+      curPattern = state.pattern;
+      const fadeStart = cycle - FADE_T;
+      if (cyclePos > fadeStart) {
+        mix = (cyclePos - fadeStart) / FADE_T;
+        nextPattern = (state.pattern + 1) % NUM_PATTERNS;
+      } else {
+        nextPattern = curPattern;
+      }
+      // keep button highlight in sync (cheap; only changes on advance)
+      if (!frame._lastBtn || frame._lastBtn !== curPattern) {
+        frame._lastBtn = curPattern;
+      }
+    }
+
     gl.uniform2f(u.res, canvas.width, canvas.height);
     gl.uniform1f(u.time, t);
     gl.uniform1f(u.loop, state.loop);
     gl.uniform1f(u.speed, state.speed);
     gl.uniform1f(u.dens, state.dens);
     gl.uniform1f(u.inv, state.inv);
-    gl.uniform1i(u.pattern, state.pattern);
+    gl.uniform1i(u.pattern, curPattern);
+    gl.uniform1i(u.patternNext, nextPattern);
+    gl.uniform1f(u.mix, mix);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     requestAnimationFrame(frame);
   }
