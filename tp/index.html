@@ -108,8 +108,8 @@
     <button data-p="1"><span class="num">02</span><span class="nm">Dashes</span></button>
     <button data-p="2"><span class="num">03</span><span class="nm">Chroma</span></button>
     <button data-p="3"><span class="num">04</span><span class="nm">Ikeda</span></button>
-    <button data-p="4"><span class="num">05</span><span class="nm">Spectrum</span></button>
-    <button data-p="5"><span class="num">06</span><span class="nm">Cross Scan</span></button>
+    <button data-p="4"><span class="num">05</span><span class="nm">Dashes V</span></button>
+    <button data-p="5"><span class="num">06</span><span class="nm">Chroma V</span></button>
   </div>
   <div class="all-row">
     <button id="allBtn">Loop All</button>
@@ -272,50 +272,37 @@ const FRAG = `
     return vec3(r, g, b);
   }
 
+  // 05 — Dashes V (vertical version of 02)
   vec3 pattern4(vec2 frag) {
     float theta = fract(uTime / uLoop * uSpeed) * TAU;
     vec2 uv = frag / uRes;
-    float bars = 64.0 * uDens;
-    float idx  = floor(uv.x * bars);
-    float inn  = fract(uv.x * bars);
-
-    float h = 0.0;
-    h += 0.55 + 0.45 * sin(theta * 1.0 + idx * 0.21);
-    h += 0.30 * (0.5 + 0.5 * sin(theta * 2.0 + idx * 0.39 + 1.7));
-    h += 0.18 * (0.5 + 0.5 * sin(theta * 3.0 + idx * 0.71 + 3.1));
-    h /= 1.6;
-    h = clamp(h * 0.85, 0.0, 1.0);
-
-    float bar = step(uv.y, h)
-              * step(0.06, inn) * step(inn, 0.94);
-    float peak = step(abs(uv.y - h), 0.005)
-               * step(0.06, inn) * step(inn, 0.94);
-    float baseline = step(uv.y, 0.008);
-    float gridY = step(fract(uv.y * 5.0), 0.02) * 0.18;
-
-    return vec3(max(max(bar * 0.85 + peak, baseline), gridY));
+    float colsN = 12.0 * uDens;
+    float v = sfunc2(vec2(uv.y * 0.5, floor(uv.x * colsN)), theta);
+    float f = fract(v + theta * 3.0 / TAU);
+    float on  = step(0.82, f);
+    float gap = step(0.30, fract(uv.x * colsN + 0.18));
+    return vec3(on * gap);
   }
 
+  // 06 — Chroma V (vertical version of 03)
   vec3 pattern5(vec2 frag) {
     float theta = fract(uTime / uLoop * uSpeed) * TAU;
-    vec2 uv = frag / uRes;
-    uv.x *= uRes.x / uRes.y;
-
-    float lines = 22.0 * uDens;
-    float a1 = 0.30, a2 = 0.30 + 1.5708;
-
-    float p1 = uv.x * cos(a1) + uv.y * sin(a1);
-    float p2 = uv.x * cos(a2) + uv.y * sin(a2);
-
-    float ph1 = fract(p1 * lines + theta / TAU);
-    float ph2 = fract(p2 * lines * 0.7 - theta / TAU);
-
-    float th  = 0.16 + 0.06 * sin(theta * 2.0);
-    float l1  = step(ph1, th);
-    float l2  = step(ph2, th * 0.6);
-
-    float inter = l1 * l2 * 0.6;
-    return vec3(max(max(l1, l2), inter));
+    vec2 uv = frag / uRes - 0.5;
+    vec3 acc = vec3(0.0);
+    const int LAYERS = 64;
+    float colsN = 18.0 * uDens;
+    for (int i = 0; i < LAYERS; i++) {
+      float fi = float(i);
+      float v = sfunc2(vec2(uv.y * 0.5, floor(uv.x * colsN + 0.5)), theta);
+      float f = fract(v + theta * 3.0 / TAU);
+      float pat = step(0.7, f) * step(0.3, fract(uv.x * colsN + 0.65));
+      vec3 col = logichroma(1.0 - fi / float(LAYERS));
+      float a = 1.0 - fi / float(LAYERS);
+      acc += pat * col * a;
+      uv *= 0.992;
+    }
+    acc *= 0.04;
+    return 1.0 - acc;
   }
 
   vec3 renderPattern(int p, vec2 frag) {
