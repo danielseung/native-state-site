@@ -34,21 +34,19 @@
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none;
     transition: transform 0.25s ease, opacity 0.25s ease;
+    max-height: calc(100vh - 96px); overflow-y: auto;
   }
   body.menu-open #panel { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
-  .row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; font-size: 12px; }
-  .row label { color: var(--panel-muted); letter-spacing: 0.04em; text-transform: uppercase; }
-  .row .val { font-variant-numeric: tabular-nums; color: var(--panel-fg); font-size: 11px; }
+  .slider-row { display: block; margin: 12px 0; font-size: 12px; }
+  .slider-row .top { display: flex; justify-content: space-between; color: var(--panel-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .slider-row .val { font-variant-numeric: tabular-nums; color: var(--panel-fg); font-size: 11px; }
 
   input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; background: transparent; margin: 4px 0 0; }
   input[type=range]::-webkit-slider-runnable-track { height: 2px; background: rgba(255,255,255,0.18); border-radius: 2px; }
   input[type=range]::-moz-range-track { height: 2px; background: rgba(255,255,255,0.18); border-radius: 2px; }
   input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: #fff; border-radius: 50%; margin-top: -5px; cursor: pointer; }
   input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: #fff; border: none; border-radius: 50%; cursor: pointer; }
-
-  .slider-row { display: block; margin: 12px 0; font-size: 12px; }
-  .slider-row .top { display: flex; justify-content: space-between; color: var(--panel-muted); letter-spacing: 0.04em; text-transform: uppercase; }
 
   .colors { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 8px; }
   .colors input[type=color] {
@@ -72,7 +70,7 @@
 </style>
 </head>
 <body>
-<canvas id="gl"></canvas>
+<div id="canvas-host"></div>
 
 <button id="toggle" aria-label="Toggle controls">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -92,23 +90,39 @@
   </div>
 
   <hr />
-  <div class="section">Shape</div>
+  <div class="section">Mesh</div>
 
   <div class="slider-row">
-    <div class="top"><span>Frequency X</span><span class="val" id="fxVal">1.40</span></div>
-    <input type="range" id="fx" min="0.1" max="8" step="0.01" value="1.4" />
+    <div class="top"><span>Sharpness</span><span class="val" id="sharpVal">12.0</span></div>
+    <input type="range" id="sharp" min="1" max="32" step="0.1" value="12.0" />
   </div>
   <div class="slider-row">
-    <div class="top"><span>Frequency Y</span><span class="val" id="fyVal">6.00</span></div>
-    <input type="range" id="fy" min="0.1" max="8" step="0.01" value="6.0" />
+    <div class="top"><span>Displacement</span><span class="val" id="ampVal">0.20</span></div>
+    <input type="range" id="amp" min="0" max="1.2" step="0.01" value="0.20" />
   </div>
   <div class="slider-row">
-    <div class="top"><span>Grain</span><span class="val" id="amountVal">0.11</span></div>
-    <input type="range" id="amount" min="0" max="1" step="0.001" value="0.11" />
+    <div class="top"><span>Flow Up</span><span class="val" id="flowVal">0.80</span></div>
+    <input type="range" id="flow" min="0" max="3" step="0.01" value="0.80" />
   </div>
   <div class="slider-row">
-    <div class="top"><span>Speed</span><span class="val" id="speedVal">0.20</span></div>
-    <input type="range" id="speed" min="0" max="2" step="0.01" value="0.2" />
+    <div class="top"><span>Warp</span><span class="val" id="warpVal">1.00</span></div>
+    <input type="range" id="warp" min="0" max="3" step="0.01" value="1.00" />
+  </div>
+  <div class="slider-row">
+    <div class="top"><span>Rotation</span><span class="val" id="rotVal">0.50</span></div>
+    <input type="range" id="rot" min="0" max="2" step="0.01" value="0.50" />
+  </div>
+  <div class="slider-row">
+    <div class="top"><span>Grain</span><span class="val" id="grainVal">0.10</span></div>
+    <input type="range" id="grain" min="0" max="0.5" step="0.001" value="0.10" />
+  </div>
+  <div class="slider-row">
+    <div class="top"><span>Shading</span><span class="val" id="shadeVal">0.35</span></div>
+    <input type="range" id="shade" min="0" max="1" step="0.01" value="0.35" />
+  </div>
+  <div class="slider-row">
+    <div class="top"><span>Loop Speed</span><span class="val" id="speedVal">0.10</span></div>
+    <input type="range" id="speed" min="0" max="1" step="0.005" value="0.10" />
   </div>
 
   <div class="actions">
@@ -117,237 +131,351 @@
   </div>
 </aside>
 
-<script>
-(() => {
-  const canvas = document.getElementById('gl');
-  const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false });
-  if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:20px">WebGL not supported.</p>'; return; }
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
 
-  const VERT = `
-    attribute vec2 aPos;
-    void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
-  `;
+<script type="module">
+import * as THREE from 'three';
 
-  const FRAG = `
-    precision highp float;
-    uniform vec2 uRes;
-    uniform float uTime;
-    uniform vec3 uC1, uC2, uC3, uC4, uC5;
-    uniform float uFx, uFy, uAmount, uSpeed;
+// ---------- state ----------
+const state = {
+  c1: '#000000', c2: '#406069', c3: '#023047', c4: '#925689', c5: '#FB8500',
+  sharp: 12.0, amp: 0.20, flow: 0.80, warp: 1.00, rot: 0.50,
+  grain: 0.10, shade: 0.35, speed: 0.10,
+};
 
-    float hash(vec2 p) {
-      p = fract(p * vec2(123.34, 456.21));
-      p += dot(p, p + 45.32);
-      return fract(p.x * p.y);
-    }
-    float vnoise(vec2 p) {
-      vec2 i = floor(p), f = fract(p);
-      vec2 u = f*f*(3.0-2.0*f);
-      float a = hash(i);
-      float b = hash(i + vec2(1.0,0.0));
-      float c = hash(i + vec2(0.0,1.0));
-      float d = hash(i + vec2(1.0,1.0));
-      return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
-    }
-    float fbm(vec2 p) {
-      float v = 0.0, a = 0.5;
-      for (int i = 0; i < 5; i++) {
-        v += a * vnoise(p);
-        p *= 2.02;
-        a *= 0.5;
-      }
-      return v;
-    }
-
-    void main() {
-      vec2 uv = gl_FragCoord.xy / uRes.xy;
-      float aspect = uRes.x / uRes.y;
-      vec2 p = uv * 2.0 - 1.0;
-      p.x *= aspect;
-
-      // Seamless loop: orbit a circle in noise-space so every offset
-      // returns to its start once per 1/uSpeed seconds.
-      float TAU = 6.28318530718;
-      float theta = uTime * uSpeed * TAU;
-      float orbit = 1.0;
-      vec2 t1 = vec2(sin(theta),        cos(theta))        * orbit;
-      vec2 t2 = vec2(sin(theta + 1.73), cos(theta + 1.73)) * orbit;
-      vec2 t3 = vec2(sin(theta + 3.11), cos(theta + 3.11)) * orbit;
-
-      // domain warp
-      vec2 q = vec2(
-        fbm(p * vec2(uFx, uFy) + t1),
-        fbm(p * vec2(uFx, uFy) + vec2(5.2, 1.3) + t2)
-      );
-      vec2 r = vec2(
-        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(1.7, 9.2) + t3),
-        fbm(p * vec2(uFx, uFy) + 2.5 * q + vec2(8.3, 2.8) + t1)
-      );
-
-      // 5 weight fields
-      float n1 = fbm(p * vec2(uFx, uFy) + 3.0 * r + vec2( 0.0,  0.0));
-      float n2 = fbm(p * vec2(uFx, uFy) + 3.0 * r + vec2( 7.3,  3.1));
-      float n3 = fbm(p * vec2(uFx, uFy) + 3.0 * r + vec2(14.6,  6.2));
-      float n4 = fbm(p * vec2(uFx, uFy) + 3.0 * r + vec2(21.9,  9.3));
-      float n5 = fbm(p * vec2(uFx, uFy) + 3.0 * r + vec2(29.2, 12.4));
-
-      float k = 6.0;
-      float w1 = exp(n1 * k);
-      float w2 = exp(n2 * k);
-      float w3 = exp(n3 * k);
-      float w4 = exp(n4 * k);
-      float w5 = exp(n5 * k);
-      float ws = w1 + w2 + w3 + w4 + w5;
-
-      vec3 col = (uC1*w1 + uC2*w2 + uC3*w3 + uC4*w4 + uC5*w5) / ws;
-
-      // grain — phase tied to the same loop so the whole frame is periodic
-      float gphase = fract(uTime * uSpeed);
-      float g = (hash(gl_FragCoord.xy + gphase) - 0.5) * uAmount;
-      col += g;
-
-      gl_FragColor = vec4(col, 1.0);
-    }
-  `;
-
-  function compile(type, src) {
-    const s = gl.createShader(type);
-    gl.shaderSource(s, src); gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-      console.error(gl.getShaderInfoLog(s)); throw new Error('shader');
-    }
-    return s;
+const params = new URLSearchParams(location.search);
+['c1','c2','c3','c4','c5'].forEach(k => {
+  const v = params.get(k);
+  if (v) state[k] = '#' + v.replace('#','');
+});
+const aliases = {
+  sharp:['sharp','spread'], amp:['amp','fy','disp'], flow:['flow'],
+  warp:['warp'], rot:['rot'], grain:['grain','amount'],
+  shade:['shade'], speed:['speed'],
+};
+for (const k in aliases) {
+  for (const a of aliases[k]) {
+    const v = params.get(a);
+    if (v !== null) { state[k] = parseFloat(v); break; }
   }
-  const prog = gl.createProgram();
-  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
-  gl.useProgram(prog);
+}
 
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(prog, 'aPos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+// ---------- three.js ----------
+const host = document.getElementById('canvas-host');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+host.appendChild(renderer.domElement);
 
-  const u = {
-    res: gl.getUniformLocation(prog, 'uRes'),
-    time: gl.getUniformLocation(prog, 'uTime'),
-    c1: gl.getUniformLocation(prog, 'uC1'),
-    c2: gl.getUniformLocation(prog, 'uC2'),
-    c3: gl.getUniformLocation(prog, 'uC3'),
-    c4: gl.getUniformLocation(prog, 'uC4'),
-    c5: gl.getUniformLocation(prog, 'uC5'),
-    fx: gl.getUniformLocation(prog, 'uFx'),
-    fy: gl.getUniformLocation(prog, 'uFy'),
-    amount: gl.getUniformLocation(prog, 'uAmount'),
-    speed: gl.getUniformLocation(prog, 'uSpeed'),
-  };
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
+camera.position.set(0, 0, 2);
+camera.lookAt(0, 0, 0);
 
-  function hexToRGB(hex) {
-    const h = hex.replace('#','');
-    return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+// High-res plane so vertex displacement reads smoothly.
+const SEG = 256;
+const geometry = new THREE.PlaneGeometry(2, 2, SEG, SEG);
+
+const hexToVec3 = (hex) => {
+  const h = hex.replace('#','');
+  return new THREE.Vector3(
+    parseInt(h.slice(0,2),16)/255,
+    parseInt(h.slice(2,4),16)/255,
+    parseInt(h.slice(4,6),16)/255,
+  );
+};
+
+const uniforms = {
+  uTime:    { value: 0 },
+  uAspect:  { value: 1 },
+  uSpeed:   { value: state.speed },
+  uSharp:   { value: state.sharp },
+  uAmp:     { value: state.amp },
+  uFlow:    { value: state.flow },
+  uWarp:    { value: state.warp },
+  uRot:     { value: state.rot },
+  uGrain:   { value: state.grain },
+  uShade:   { value: state.shade },
+  uC1: { value: hexToVec3(state.c1) },
+  uC2: { value: hexToVec3(state.c2) },
+  uC3: { value: hexToVec3(state.c3) },
+  uC4: { value: hexToVec3(state.c4) },
+  uC5: { value: hexToVec3(state.c5) },
+};
+
+// Shared field code: rotated/warped UV → 5 orbiting blob centers → inverse-distance blend.
+// Every time term is sin(theta) / cos(theta) with multiplier 1, so the loop closes at theta = 2*PI.
+const FIELD_GLSL = `
+mat2 rot2(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+
+// Returns (weight1..5, dominantWeight) so vertex shader can use the dominant weight as height.
+void blobWeights(vec2 tuv, float theta, float sharp, float warp, float rotAmt,
+                 out float w1, out float w2, out float w3, out float w4, out float w5) {
+  // gentle rotation that returns to identity each loop
+  tuv = rot2(sin(theta) * rotAmt) * tuv;
+
+  // wave warp — period preserved because sin args use integer multiples of theta
+  tuv.x += sin(tuv.y * 5.0 + theta * 2.0) * (warp / 30.0);
+  tuv.y += sin(tuv.x * 7.5 + theta * 2.0) * (warp / 15.0);
+
+  // 5 blob orbits — sin/cos of theta with phase offsets; closes at 2*PI
+  vec2 p1 = vec2(sin(theta            ) * 0.30, cos(theta            ) * 0.25);
+  vec2 p2 = vec2(cos(theta + 1.10     ) * 0.30, sin(theta + 1.55     ) * 0.22);
+  vec2 p3 = vec2(sin(theta + 2.20     ) * 0.22, cos(theta + 1.30     ) * 0.30);
+  vec2 p4 = vec2(cos(theta + 3.05     ) * 0.27, sin(theta + 2.40     ) * 0.24);
+  vec2 p5 = vec2(sin(theta + 4.40     ) * 0.20, cos(theta + 3.70     ) * 0.20);
+
+  float d1 = length(tuv - p1);
+  float d2 = length(tuv - p2);
+  float d3 = length(tuv - p3);
+  float d4 = length(tuv - p4);
+  float d5 = length(tuv - p5);
+
+  w1 = 1.0 / (pow(d1, sharp) + 0.01);
+  w2 = 1.0 / (pow(d2, sharp) + 0.01);
+  w3 = 1.0 / (pow(d3, sharp) + 0.01);
+  w4 = 1.0 / (pow(d4, sharp) + 0.01);
+  w5 = 1.0 / (pow(d5, sharp) + 0.01);
+}
+
+// Mesh height field: log of dominant weight, smoothed. Bumps lie under each blob center.
+float heightField(vec2 tuv, float theta, float sharp, float warp, float rotAmt) {
+  float w1, w2, w3, w4, w5;
+  blobWeights(tuv, theta, sharp, warp, rotAmt, w1, w2, w3, w4, w5);
+  float total = w1 + w2 + w3 + w4 + w5;
+  // dominance ratio: how much one blob dominates this pixel
+  float top = max(max(max(max(w1, w2), w3), w4), w5);
+  return clamp(top / total, 0.0, 1.0);
+}
+`;
+
+const VERT = `
+${FIELD_GLSL}
+
+uniform float uTime;
+uniform float uSpeed;
+uniform float uAmp;
+uniform float uSharp;
+uniform float uFlow;
+uniform float uWarp;
+uniform float uRot;
+uniform float uAspect;
+
+varying vec2 vBaseTuv;
+varying float vLooped;
+varying vec3 vNormal;
+
+float disp(vec2 tuv, float theta) {
+  // a softer, smoother variant for displacement (lower sharp keeps mesh from spiking)
+  return heightField(tuv, theta, max(uSharp * 0.35, 1.5), uWarp, uRot);
+}
+
+void main() {
+  float TAU = 6.28318530718;
+  float looped = fract(uTime * uSpeed);
+  float theta  = looped * TAU;
+
+  // base UV in centered, aspect-corrected space
+  vec2 baseTuv = vec2(position.x * uAspect, position.y);
+
+  // upward flow via dual-sample crossfade
+  vec2 tuvA = baseTuv + vec2(0.0, -looped         * uFlow);
+  vec2 tuvB = baseTuv + vec2(0.0, -(looped - 1.0) * uFlow);
+
+  float dA = disp(tuvA, theta);
+  float dB = disp(tuvB, theta);
+  float h  = mix(dA, dB, looped);
+
+  // finite-difference normals from the same height field
+  float e = 0.012;
+  float dAx = disp(tuvA + vec2(e, 0.0), theta);
+  float dBx = disp(tuvB + vec2(e, 0.0), theta);
+  float dAy = disp(tuvA + vec2(0.0, e), theta);
+  float dBy = disp(tuvB + vec2(0.0, e), theta);
+  float hx = mix(dAx, dBx, looped);
+  float hy = mix(dAy, dBy, looped);
+
+  vec3 p  = vec3(position.x, position.y, position.z + h  * uAmp);
+  vec3 px = vec3(position.x + e, position.y, position.z + hx * uAmp);
+  vec3 py = vec3(position.x, position.y + e, position.z + hy * uAmp);
+  vNormal = normalize(cross(px - p, py - p));
+
+  vBaseTuv = baseTuv;
+  vLooped  = looped;
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+}
+`;
+
+const FRAG = `
+precision highp float;
+${FIELD_GLSL}
+
+uniform float uTime;
+uniform float uSpeed;
+uniform float uSharp;
+uniform float uFlow;
+uniform float uWarp;
+uniform float uRot;
+uniform float uGrain;
+uniform float uShade;
+uniform vec3 uC1, uC2, uC3, uC4, uC5;
+
+varying vec2 vBaseTuv;
+varying float vLooped;
+varying vec3 vNormal;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+vec3 sampleField(vec2 tuv, float theta) {
+  float w1, w2, w3, w4, w5;
+  blobWeights(tuv, theta, uSharp, uWarp, uRot, w1, w2, w3, w4, w5);
+  float total = w1 + w2 + w3 + w4 + w5;
+  return (uC1*w1 + uC2*w2 + uC3*w3 + uC4*w4 + uC5*w5) / total;
+}
+
+void main() {
+  float TAU = 6.28318530718;
+  float looped = vLooped;
+  float theta  = looped * TAU;
+
+  vec2 tuvA = vBaseTuv + vec2(0.0, -looped         * uFlow);
+  vec2 tuvB = vBaseTuv + vec2(0.0, -(looped - 1.0) * uFlow);
+
+  vec3 cA = sampleField(tuvA, theta);
+  vec3 cB = sampleField(tuvB, theta);
+  vec3 col = mix(cA, cB, looped);
+
+  // dimensional shading from displaced normal
+  vec3 lightDir = normalize(vec3(0.30, 0.55, 1.0));
+  float ndl = clamp(dot(normalize(vNormal), lightDir), 0.0, 1.0);
+  float shade = mix(1.0, 0.55 + 0.55 * ndl, uShade);
+  col *= shade;
+
+  // film grain — subtractive, like the reference
+  float gphase = fract(uTime * uSpeed);
+  col -= length(hash21(gl_FragCoord.xy + gphase * 31.0)) * uGrain;
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader: VERT,
+  fragmentShader: FRAG,
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+// ---------- resize ----------
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  const aspect = w / h;
+  uniforms.uAspect.value = aspect;
+  if (aspect >= 1) {
+    camera.left = -aspect; camera.right = aspect;
+    camera.top = 1; camera.bottom = -1;
+  } else {
+    camera.left = -1; camera.right = 1;
+    camera.top = 1 / aspect; camera.bottom = -1 / aspect;
   }
-  function rgbToHex(r,g,b) {
-    const t = v => Math.round(v*255).toString(16).padStart(2,'0');
-    return '#' + t(r) + t(g) + t(b);
+  camera.updateProjectionMatrix();
+  const cover = Math.max(aspect, 1 / aspect) * 1.05;
+  mesh.scale.set(cover, cover, 1);
+}
+resize();
+addEventListener('resize', resize);
+
+// ---------- UI wiring ----------
+const sliders = ['sharp','amp','flow','warp','rot','grain','shade','speed'];
+const labelIds = {
+  sharp:'sharpVal', amp:'ampVal', flow:'flowVal', warp:'warpVal',
+  rot:'rotVal', grain:'grainVal', shade:'shadeVal', speed:'speedVal',
+};
+const fmt = (k, v) => (k === 'grain') ? v.toFixed(3) : (k === 'sharp' ? v.toFixed(1) : v.toFixed(2));
+
+function syncInputs() {
+  for (const k of ['c1','c2','c3','c4','c5']) document.getElementById(k).value = state[k];
+  for (const k of sliders) {
+    document.getElementById(k).value = state[k];
+    document.getElementById(labelIds[k]).textContent = fmt(k, +state[k]);
   }
+}
+syncInputs();
 
-  const state = {
-    c1: '#000000', c2: '#406069', c3: '#023047', c4: '#925689', c5: '#FB8500',
-    fx: 1.4, fy: 6.0, amount: 0.11, speed: 0.2,
-  };
+function pushUniforms() {
+  uniforms.uC1.value.copy(hexToVec3(state.c1));
+  uniforms.uC2.value.copy(hexToVec3(state.c2));
+  uniforms.uC3.value.copy(hexToVec3(state.c3));
+  uniforms.uC4.value.copy(hexToVec3(state.c4));
+  uniforms.uC5.value.copy(hexToVec3(state.c5));
+  uniforms.uSharp.value = state.sharp;
+  uniforms.uAmp.value   = state.amp;
+  uniforms.uFlow.value  = state.flow;
+  uniforms.uWarp.value  = state.warp;
+  uniforms.uRot.value   = state.rot;
+  uniforms.uGrain.value = state.grain;
+  uniforms.uShade.value = state.shade;
+  uniforms.uSpeed.value = state.speed;
+}
+pushUniforms();
 
-  // URL params
-  const params = new URLSearchParams(location.search);
-  ['c1','c2','c3','c4','c5'].forEach(k => {
-    const v = params.get(k);
-    if (v) state[k] = '#' + v.replace('#','');
+for (const k of ['c1','c2','c3','c4','c5']) {
+  const el = document.getElementById(k);
+  el.addEventListener('input', () => { state[k] = el.value; pushUniforms(); });
+}
+for (const k of sliders) {
+  const el = document.getElementById(k);
+  const lab = document.getElementById(labelIds[k]);
+  el.addEventListener('input', () => {
+    state[k] = parseFloat(el.value);
+    lab.textContent = fmt(k, state[k]);
+    pushUniforms();
   });
-  ['fx','fy','amount','speed'].forEach(k => {
-    const v = params.get(k);
-    if (v !== null) state[k] = parseFloat(v);
-  });
+}
 
-  function syncInputs() {
-    ['c1','c2','c3','c4','c5'].forEach(k => document.getElementById(k).value = state[k]);
-    ['fx','fy','amount','speed'].forEach(k => {
-      document.getElementById(k).value = state[k];
-      document.getElementById(k+'Val').textContent = (+state[k]).toFixed(2);
-    });
-  }
-  syncInputs();
+document.getElementById('toggle').addEventListener('click', () => {
+  document.body.classList.toggle('menu-open');
+});
 
-  function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.floor(innerWidth * dpr);
-    canvas.height = Math.floor(innerHeight * dpr);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-  }
-  resize();
-  addEventListener('resize', resize);
+document.getElementById('randomize').addEventListener('click', () => {
+  const rand = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+  for (const k of ['c1','c2','c3','c4','c5']) state[k] = '#' + rand() + rand() + rand();
+  state.sharp = +(4   + Math.random() * 16 ).toFixed(1);
+  state.amp   = +(0.10 + Math.random() * 0.5).toFixed(2);
+  state.flow  = +(0.30 + Math.random() * 1.5).toFixed(2);
+  state.warp  = +(0.20 + Math.random() * 1.6).toFixed(2);
+  state.rot   = +(0.20 + Math.random() * 1.0).toFixed(2);
+  syncInputs(); pushUniforms();
+});
 
-  const t0 = performance.now();
-  function frame() {
-    const t = (performance.now() - t0) / 1000;
-    gl.uniform2f(u.res, canvas.width, canvas.height);
-    gl.uniform1f(u.time, t);
-    gl.uniform3fv(u.c1, hexToRGB(state.c1));
-    gl.uniform3fv(u.c2, hexToRGB(state.c2));
-    gl.uniform3fv(u.c3, hexToRGB(state.c3));
-    gl.uniform3fv(u.c4, hexToRGB(state.c4));
-    gl.uniform3fv(u.c5, hexToRGB(state.c5));
-    gl.uniform1f(u.fx, state.fx);
-    gl.uniform1f(u.fy, state.fy);
-    gl.uniform1f(u.amount, state.amount);
-    gl.uniform1f(u.speed, state.speed);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    requestAnimationFrame(frame);
-  }
+document.getElementById('copyLink').addEventListener('click', async () => {
+  const p = new URLSearchParams();
+  for (const k of ['c1','c2','c3','c4','c5']) p.set(k, state[k].replace('#',''));
+  for (const k of sliders) p.set(k, state[k]);
+  const url = location.origin + location.pathname + '?' + p.toString();
+  try { await navigator.clipboard.writeText(url); } catch(e) {}
+  const btn = document.getElementById('copyLink');
+  const orig = btn.textContent; btn.textContent = 'Copied';
+  setTimeout(() => btn.textContent = orig, 1200);
+});
+
+// ---------- render loop ----------
+const t0 = performance.now();
+function frame() {
+  uniforms.uTime.value = (performance.now() - t0) / 1000;
+  renderer.render(scene, camera);
   requestAnimationFrame(frame);
-
-  // wire controls
-  ['c1','c2','c3','c4','c5'].forEach(k => {
-    const el = document.getElementById(k);
-    el.addEventListener('input', () => { state[k] = el.value; });
-  });
-  ['fx','fy','amount','speed'].forEach(k => {
-    const el = document.getElementById(k);
-    const lab = document.getElementById(k+'Val');
-    el.addEventListener('input', () => {
-      state[k] = parseFloat(el.value);
-      lab.textContent = state[k].toFixed(2);
-    });
-  });
-
-  document.getElementById('toggle').addEventListener('click', () => {
-    document.body.classList.toggle('menu-open');
-  });
-
-  document.getElementById('randomize').addEventListener('click', () => {
-    ['c1','c2','c3','c4','c5'].forEach(k => {
-      state[k] = rgbToHex(Math.random(), Math.random(), Math.random());
-    });
-    state.fx = +(0.3 + Math.random() * 5).toFixed(2);
-    state.fy = +(0.3 + Math.random() * 5).toFixed(2);
-    state.amount = +(Math.random() * 0.3).toFixed(3);
-    syncInputs();
-  });
-
-  document.getElementById('copyLink').addEventListener('click', async () => {
-    const p = new URLSearchParams();
-    ['c1','c2','c3','c4','c5'].forEach(k => p.set(k, state[k].replace('#','')));
-    ['fx','fy','amount','speed'].forEach(k => p.set(k, state[k]));
-    const url = location.origin + location.pathname + '?' + p.toString();
-    try { await navigator.clipboard.writeText(url); } catch(e) {}
-    const btn = document.getElementById('copyLink');
-    const orig = btn.textContent;
-    btn.textContent = 'Copied';
-    setTimeout(() => btn.textContent = orig, 1200);
-  });
-})();
+}
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
