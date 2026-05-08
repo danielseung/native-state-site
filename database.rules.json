@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "gr1": {
+      "state": {
+        ".read": true,
+        ".write": true,
+        "$key": {
+          ".validate": "(newData.isString() && newData.val().length <= 16) || (newData.isNumber() && newData.val() >= -1000 && newData.val() <= 1000)"
+        }
+      }
+    },
+    "tp": {
+      "state": {
+        ".read": true,
+        ".write": true,
+        "$key": {
+          ".validate": "(newData.isString() && newData.val().length <= 32) || newData.isNumber() || newData.isBoolean()"
+        }
+      }
+    },
+    "m": {
+      "presence": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['online', 'last_seen']) && newData.child('online').isBoolean() && newData.child('last_seen').isNumber()"
+        }
+      },
+      "channels": {
+        "$channel": {
+          "messages": {
+            ".read": "auth != null",
+            ".indexOn": ["ts"],
+            "$msg": {
+              ".write": "auth != null && (!data.exists() || data.child('from_uid').val() == auth.uid)",
+              ".validate": "newData.hasChildren(['from_uid', 'body', 'ts']) && newData.child('from_uid').val() == auth.uid && newData.child('body').isString() && newData.child('body').val().length > 0 && newData.child('body').val().length <= 1500"
+            }
+          }
+        }
+      }
+    }
+  }
+}

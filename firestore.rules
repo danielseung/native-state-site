@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function authEmailLower() {
+      return isSignedIn() && request.auth.token.email != null
+        ? request.auth.token.email.lower() : '';
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function hasInvite() {
+      return isSignedIn() && request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/invites/$(request.auth.token.email.lower()));
+    }
+
+    // ── Invites: keyed by lowercased email ──────────────────────────────────
+    match /invites/{email} {
+      // Only the user with the matching email can read/update their own invite.
+      // Admins can read/manage all invites.
+      allow read: if isAdmin() ||
+        (isSignedIn() && request.auth.token.email != null &&
+          request.auth.token.email.lower() == email);
+      // Member can only set the "used" fields when consuming their invite.
+      allow update: if (isSignedIn() && request.auth.token.email != null &&
+          request.auth.token.email.lower() == email &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['used', 'used_by_uid', 'used_at']))
+        || isAdmin();
+      allow create, delete: if isAdmin();
+    }
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid) && hasInvite()
+        && request.resource.data.email == request.auth.token.email.lower();
+      // Owner may update own doc but cannot escalate role.
+      allow update: if isOwner(uid)
+        && (!('role' in request.resource.data.diff(resource.data).affectedKeys())
+            || request.resource.data.role == resource.data.role)
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Events ──────────────────────────────────────────────────────────────
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      // Anyone signed in can post a 'member' event. Only admin can post 'ns'.
+      allow create: if isSignedIn()
+        && request.resource.data.host_uid == request.auth.uid
+        && (request.resource.data.type == 'member'
+            || (request.resource.data.type == 'ns' && isAdmin()));
+      allow update: if isSignedIn() &&
+        (resource.data.host_uid == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() &&
+        (resource.data.host_uid == request.auth.uid || isAdmin());
+
+      match /rsvps/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid);
+      }
+    }
+  }
+}

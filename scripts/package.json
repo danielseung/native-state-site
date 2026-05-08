@@ -1,0 +1,13 @@
+{
+  "name": "native-state-site-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scripts for managing the /m members platform",
+  "scripts": {
+    "extract": "node extract-artists.js",
+    "import": "node import-invites.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  }
+}
