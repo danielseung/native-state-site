@@ -419,8 +419,10 @@ function setActiveTab(name) {
 const STORE_EMAIL_KEY = 'ns_signin_email';
 
 async function sendMagicLink(email) {
+  // Firebase appends ?apiKey=...&oobCode=...&mode=signIn to this URL.
+  // No hash fragment — fragments interact badly with Firebase's param injection.
   const actionCodeSettings = {
-    url: location.origin + location.pathname + '#login',
+    url: location.origin + location.pathname,
     handleCodeInApp: true,
   };
   await sendSignInLinkToEmail(auth, email, actionCodeSettings);
