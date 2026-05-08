@@ -295,13 +295,45 @@
   .rsvp button.active { color: var(--fg); border-color: var(--fg); background: var(--input-bg); }
 
   /* ── Chat ── */
-  .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 200px); min-height: 400px; }
-  .chat-channels {
-    font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
-    padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  .chat-layout {
+    display: grid; grid-template-columns: 200px 1fr; gap: 32px;
+    height: calc(100vh - 220px); min-height: 480px;
   }
-  .chat-channels span { color: var(--fg); }
+  .chat-sidebar { border-right: 1px solid var(--border); padding-right: 16px; }
+  .chat-sidebar-label {
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 9px; letter-spacing: 0.16em; color: var(--fg-dim); margin-bottom: 14px;
+  }
+  .chat-channel-list { display: flex; flex-direction: column; }
+  .chat-channel-item {
+    display: block; padding: 7px 0;
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 12px; color: var(--fg-dim); cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+    text-decoration: none;
+  }
+  .chat-channel-item:hover { color: var(--fg); }
+  .chat-channel-item.active { color: var(--fg); }
+  .chat-channel-item.active::before { content: '→ '; }
+  .chat-main { display: flex; flex-direction: column; min-width: 0; }
+  .chat-channel-header { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .chat-channel-name { font-size: 16px; font-weight: 400; }
+  .chat-channel-desc { font-size: 12px; color: var(--fg-dim); margin-top: 3px; }
+  .chat-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  @media (max-width: 720px) {
+    .chat-layout { grid-template-columns: 1fr; gap: 16px; height: auto; }
+    .chat-sidebar {
+      border-right: none; border-bottom: 1px solid var(--border);
+      padding-right: 0; padding-bottom: 12px;
+    }
+    .chat-channel-list { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+    .chat-channel-item {
+      border: 1px solid var(--border); padding: 4px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-channel-item.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+    .chat-channel-item.active::before { content: ''; }
+  }
   .chat-msgs { flex: 1; overflow-y: auto; padding: 8px 0; display: flex; flex-direction: column; gap: 8px; }
   .msg-row { display: grid; grid-template-columns: 100px 1fr 60px; gap: 16px; align-items: baseline; padding: 6px 0; }
   .msg-row .from {
@@ -495,6 +527,12 @@ const state = {
     year: new Date().getFullYear(),
     month: new Date().getMonth(),
   },
+  chat: {
+    channelId: localStorage.getItem('m_chat_channel') || 'general',
+  },
+  channels: [],   // channels collection
+  _chatUnsub: null,
+  _currentMsgs: [],
 };
 
 const cleanupSubs = () => { state.unsubs.forEach(u => { try { u(); } catch(e){} }); state.unsubs = []; };
@@ -1128,34 +1166,54 @@ function renderChat() {
       <div class="view">
         <div class="view-header">
           <div class="view-title">Chat</div>
-          <div class="view-subtitle">#GENERAL</div>
+          <div class="view-subtitle" id="chat-subtitle">CHANNELS</div>
         </div>
-        <div class="chat-wrap">
-          <div class="chat-msgs" id="chat-msgs"><div class="empty">LOADING…</div></div>
-          <form class="chat-input" id="chat-form">
-            <input id="chat-input" type="text" placeholder="Message #general…" autocomplete="off" maxlength="1500" />
-            <button class="btn" type="submit">SEND</button>
-          </form>
+        <div class="chat-layout">
+          <div class="chat-sidebar">
+            <div class="chat-sidebar-label">CHANNELS</div>
+            <div class="chat-channel-list" id="channel-list">
+              <div class="empty" style="font-size:9px; padding: 20px 0;">LOADING…</div>
+            </div>
+          </div>
+          <div class="chat-main">
+            <div class="chat-channel-header" id="chat-channel-header"></div>
+            <div class="chat-wrap">
+              <div class="chat-msgs" id="chat-msgs"><div class="empty">LOADING…</div></div>
+              <form class="chat-input" id="chat-form">
+                <input id="chat-input" type="text" placeholder="Message…" autocomplete="off" maxlength="1500" />
+                <button class="btn" type="submit">SEND</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   `;
-  // Need members for handle lookup
+
+  // Channels list
+  const chQ = query(collection(fs, 'channels'), orderBy('position'));
+  const unsubCh = onSnapshot(chQ, (snap) => {
+    state.channels = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.archived);
+    // If saved channel doesn't exist anymore, fall back to first
+    if (!state.channels.find(c => c.id === state.chat.channelId)) {
+      state.chat.channelId = state.channels[0]?.id || 'general';
+    }
+    renderChannelList();
+    renderChannelHeader();
+  });
+  state.unsubs.push(unsubCh);
+
+  // Members for handle lookup
   if (state.members.length === 0) {
     const q = query(collection(fs, 'users'), orderBy('name'));
     const unsubM = onSnapshot(q, (snap) => {
       state.members = snap.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.handle);
+      renderChatMsgs(state._currentMsgs);
     });
     state.unsubs.push(unsubM);
   }
 
-  const msgsRef = dbQuery(dbRef(rtdb, 'm/channels/general/messages'), limitToLast(100));
-  const unsub = onValue(msgsRef, (snap) => {
-    const v = snap.val() || {};
-    const msgs = Object.entries(v).map(([id, m]) => ({ id, ...m })).sort((a,b) => a.ts - b.ts);
-    renderChatMsgs(msgs);
-  });
-  state.unsubs.push(unsub);
+  subscribeChannel(state.chat.channelId);
 
   $('chat-form').onsubmit = async (e) => {
     e.preventDefault();
@@ -1163,7 +1221,7 @@ function renderChat() {
     const body = input.value.trim();
     if (!body) return;
     try {
-      await push(dbRef(rtdb, 'm/channels/general/messages'), {
+      await push(dbRef(rtdb, `m/channels/${state.chat.channelId}/messages`), {
         from_uid: state.user.uid, body, ts: rtdbServerTimestamp(),
       });
       input.value = '';
@@ -1171,6 +1229,53 @@ function renderChat() {
       console.error(err);
     }
   };
+}
+
+function subscribeChannel(channelId) {
+  if (state._chatUnsub) { try { state._chatUnsub(); } catch(_){} state._chatUnsub = null; }
+  state.chat.channelId = channelId;
+  localStorage.setItem('m_chat_channel', channelId);
+  renderChannelList();
+  renderChannelHeader();
+  state._currentMsgs = [];
+  if ($('chat-msgs')) $('chat-msgs').innerHTML = '<div class="empty">LOADING…</div>';
+  if ($('chat-input')) $('chat-input').placeholder = `Message #${channelId}…`;
+
+  const msgsRef = dbQuery(dbRef(rtdb, `m/channels/${channelId}/messages`), limitToLast(100));
+  const unsub = onValue(msgsRef, (snap) => {
+    const v = snap.val() || {};
+    const msgs = Object.entries(v).map(([id, m]) => ({ id, ...m })).sort((a,b) => a.ts - b.ts);
+    state._currentMsgs = msgs;
+    renderChatMsgs(msgs);
+  });
+  state._chatUnsub = unsub;
+  state.unsubs.push(unsub);
+}
+
+function renderChannelList() {
+  const list = $('channel-list');
+  if (!list) return;
+  if (state.channels.length === 0) {
+    list.innerHTML = '<div class="empty" style="font-size:9px;">NO CHANNELS</div>';
+    return;
+  }
+  list.innerHTML = state.channels.map(c => `
+    <a class="chat-channel-item ${c.id === state.chat.channelId ? 'active' : ''}" data-channel="${escape(c.id)}">#${escape(c.name)}</a>
+  `).join('');
+  list.querySelectorAll('[data-channel]').forEach(a => {
+    a.onclick = (e) => { e.preventDefault(); subscribeChannel(a.dataset.channel); };
+  });
+}
+
+function renderChannelHeader() {
+  const h = $('chat-channel-header');
+  if (!h) return;
+  const ch = state.channels.find(c => c.id === state.chat.channelId);
+  if (!ch) { h.innerHTML = `<div class="chat-channel-name"># ${escape(state.chat.channelId)}</div>`; return; }
+  h.innerHTML = `
+    <div class="chat-channel-name"># ${escape(ch.name)}</div>
+    ${ch.description ? `<div class="chat-channel-desc">${escape(ch.description)}</div>` : ''}
+  `;
 }
 
 function renderChatMsgs(msgs) {
@@ -1390,6 +1495,30 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
             <div id="invite-list"><div class="empty">LOADING…</div></div>
           </div>
         </div>
+
+        <div class="admin-section" style="margin-top: 48px;">
+          <h3>CHANNELS</h3>
+          <div class="admin-grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+              <form id="add-channel-form">
+                <div class="field">
+                  <label>CHANNEL ID</label>
+                  <input id="ach-name" type="text" pattern="[a-z0-9-]+" required maxlength="32" placeholder="e.g. studio-visits" />
+                  <div class="hint">Lowercase, hyphens only. Used in URLs and #mentions.</div>
+                </div>
+                <div class="field">
+                  <label>DESCRIPTION</label>
+                  <input id="ach-desc" type="text" maxlength="160" placeholder="What's this channel for?" />
+                </div>
+                <button class="btn" type="submit">CREATE CHANNEL</button>
+                <span id="ach-msg" style="margin-left: 12px;"></span>
+              </form>
+            </div>
+            <div>
+              <div id="channel-admin-list"><div class="empty">LOADING…</div></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -1429,6 +1558,61 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
       setTimeout(() => msg.innerHTML = '', 2000);
     } catch (err) {
       console.error(err);
+      msg.innerHTML = `<span class="msg error" style="display:inline-block;padding:4px 8px;">${escape(err.message)}</span>`;
+    }
+  };
+
+  // Channels admin: subscribe + list + create
+  const chQ = query(collection(fs, 'channels'), orderBy('position'));
+  const unsubCh = onSnapshot(chQ, (snap) => {
+    const chs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const list = $('channel-admin-list');
+    if (!list) return;
+    if (chs.length === 0) {
+      list.innerHTML = '<div class="empty">NO CHANNELS YET</div>';
+      return;
+    }
+    list.innerHTML = chs.map(c => `
+      <div class="invite-row">
+        <div class="info">
+          <div class="email">#${escape(c.name)}</div>
+          <div class="meta">${escape(c.description || '—')}${c.archived ? ' · <span class="used">ARCHIVED</span>' : ''}</div>
+        </div>
+        <button data-archive-ch="${escape(c.id)}">${c.archived ? 'RESTORE' : 'ARCHIVE'}</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('[data-archive-ch]').forEach(b => {
+      b.onclick = async () => {
+        const id = b.dataset.archiveCh;
+        const ch = chs.find(c => c.id === id);
+        if (!ch) return;
+        if (!confirm((ch.archived ? 'Restore' : 'Archive') + ' #' + ch.name + '?')) return;
+        try { await updateDoc(doc(fs, 'channels', id), { archived: !ch.archived }); }
+        catch (err) { alert(err.message); }
+      };
+    });
+  });
+  state.unsubs.push(unsubCh);
+
+  $('add-channel-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = $('ach-name').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const desc = $('ach-desc').value.trim();
+    const msg = $('ach-msg');
+    if (!id) {
+      msg.innerHTML = '<span class="msg error" style="display:inline-block;padding:4px 8px;">Invalid channel ID.</span>';
+      return;
+    }
+    try {
+      const maxPos = Math.max(0, ...(state.channels || []).map(c => c.position || 0));
+      await setDoc(doc(fs, 'channels', id), {
+        name: id, description: desc, position: maxPos + 1, archived: false,
+        created_at: serverTimestamp(),
+      });
+      $('add-channel-form').reset();
+      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">CREATED</span>';
+      setTimeout(() => msg.innerHTML = '', 2000);
+    } catch (err) {
       msg.innerHTML = `<span class="msg error" style="display:inline-block;padding:4px 8px;">${escape(err.message)}</span>`;
     }
   };
