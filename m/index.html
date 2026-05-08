@@ -1293,16 +1293,77 @@ function subscribeChannel(channelId) {
 function renderChannelList() {
   const list = $('channel-list');
   if (!list) return;
-  if (state.channels.length === 0) {
-    list.innerHTML = '<div class="empty" style="font-size:9px;">NO CHANNELS</div>';
-    return;
-  }
-  list.innerHTML = state.channels.map(c => `
+  const isAdmin = state.profile?.role === 'admin';
+  let html = state.channels.map(c => `
     <a class="chat-channel-item ${c.id === state.chat.channelId ? 'active' : ''}" data-channel="${escape(c.id)}">#${escape(c.name)}</a>
   `).join('');
+  if (state.channels.length === 0) {
+    html = '<div class="empty" style="font-size:9px;">NO CHANNELS</div>';
+  }
+  if (isAdmin) {
+    html += `<a class="chat-channel-item" id="add-channel-link" style="color:var(--fg-dim); margin-top: 4px;">+ NEW CHANNEL</a>`;
+  }
+  list.innerHTML = html;
   list.querySelectorAll('[data-channel]').forEach(a => {
     a.onclick = (e) => { e.preventDefault(); subscribeChannel(a.dataset.channel); };
   });
+  if (isAdmin && $('add-channel-link')) {
+    $('add-channel-link').onclick = (e) => { e.preventDefault(); openNewChannelModal(); };
+  }
+}
+
+function openNewChannelModal() {
+  const html = `
+    <div class="modal-bg" id="modal-bg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <span class="title">New channel</span>
+          <button class="close" id="modal-close">CLOSE ×</button>
+        </div>
+        <form id="ch-form">
+          <div class="field">
+            <label>CHANNEL ID</label>
+            <input id="ch-name" type="text" pattern="[a-z0-9-]+" required maxlength="32" placeholder="e.g. studio-visits" />
+            <div class="hint">Lowercase letters, numbers, hyphens. Used in URLs and #mentions.</div>
+          </div>
+          <div class="field">
+            <label>DESCRIPTION (OPTIONAL)</label>
+            <input id="ch-desc" type="text" maxlength="160" placeholder="What's this channel for?" />
+          </div>
+          <button class="btn" type="submit">CREATE</button>
+        </form>
+        <div id="ch-msg"></div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  $('modal-close').onclick = closeModal;
+  $('modal-bg').onclick = (e) => { if (e.target === $('modal-bg')) closeModal(); };
+  setTimeout(() => $('ch-name').focus(), 0);
+  $('ch-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = $('ch-name').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const desc = $('ch-desc').value.trim();
+    if (!id) {
+      $('ch-msg').innerHTML = '<div class="msg error">Invalid channel ID.</div>';
+      return;
+    }
+    if (state.channels.find(c => c.id === id)) {
+      $('ch-msg').innerHTML = '<div class="msg error">That channel already exists.</div>';
+      return;
+    }
+    try {
+      const maxPos = Math.max(0, ...(state.channels || []).map(c => c.position || 0));
+      await setDoc(doc(fs, 'channels', id), {
+        name: id, description: desc, position: maxPos + 1, archived: false,
+        created_at: serverTimestamp(),
+      });
+      closeModal();
+      subscribeChannel(id);
+    } catch (err) {
+      console.error(err);
+      $('ch-msg').innerHTML = '<div class="msg error">' + escape(err.message) + '</div>';
+    }
+  };
 }
 
 function renderChannelHeader() {
