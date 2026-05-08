@@ -1,6 +1,6 @@
 # Native State Members — Setup
 
-The `/m` app is a static site. All backend is Firebase (project `ras-common`). Setup has three parts:
+The `/world` app is a static site. All backend is Firebase (project `ras-common`). Setup has three parts:
 
 1. **Enable email-link sign-in** in the Firebase console.
 2. **Deploy security rules** (Firestore + RTDB).
@@ -44,7 +44,7 @@ In the Firebase console → **Firestore Database** → click **Start collection*
   - `role` (string): **`admin`**
   - `used` (boolean): `false`
 
-Save. Now go to `https://nativestate.info/m/`, enter that email, click the link in your inbox. You're in as admin.
+Save. Now go to `https://nativestate.info/world/`, enter that email, click the link in your inbox. You're in as admin.
 
 ## 4. Bulk-invite past artists
 
@@ -69,10 +69,10 @@ This writes one invite doc per filled email. Re-runnable — uses `merge: true`,
 
 ## 5. Send the magic links
 
-Each invited person goes to `https://nativestate.info/m/`, types their email, and gets a sign-in link. Subject and body are Firebase defaults (you can customize the email template in Firebase console → Authentication → Templates).
+Each invited person goes to `https://nativestate.info/world/`, types their email, and gets a sign-in link. Subject and body are Firebase defaults (you can customize the email template in Firebase console → Authentication → Templates).
 
 For a personal touch, you can email them yourself first:
-> *Hi — built a private members space for Native State artists. Go to nativestate.info/m and sign in with this email. Pick a handle when you land.*
+> *Hi — built a private members space for Native State artists. Go to nativestate.info/world and sign in with this email. Pick a handle when you land.*
 
 ---
 
@@ -81,7 +81,7 @@ For a personal touch, you can email them yourself first:
 ```bash
 # from repo root
 npx http-server -p 8080 -c-1
-# then open http://localhost:8080/m/
+# then open http://localhost:8080/world/
 ```
 
 For the magic-link flow to work locally, `localhost` must be on the Firebase Authorized Domains list (step 1 above).
@@ -90,7 +90,7 @@ For the magic-link flow to work locally, `localhost` must be on the Firebase Aut
 
 | Surface | Storage | Purpose |
 |---|---|---|
-| `/m/` HTML | GitHub Pages | App shell |
+| `/world/` HTML | GitHub Pages | App shell |
 | Firebase Auth | ras-common | Magic-link email sign-in |
 | Firestore `users/{uid}` | ras-common | Profiles |
 | Firestore `events/{id}` + `events/{id}/rsvps/{uid}` | ras-common | Calendar |
@@ -98,4 +98,4 @@ For the magic-link flow to work locally, `localhost` must be on the Firebase Aut
 | RTDB `m/channels/general/messages` | ras-common | #general chat |
 | RTDB `m/presence/{uid}` | ras-common | Live presence dot |
 
-`/gr1` and `/tp` continue to use the **public** RTDB paths `gr1/state` and `tp/state` — completely separate from `/m/*`.
+`/gr1` and `/tp` continue to use the **public** RTDB paths `gr1/state` and `tp/state` — completely separate from `/world/*`. (RTDB still uses the `m/` prefix for members data — internal key, not user-visible.)

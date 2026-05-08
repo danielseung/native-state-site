@@ -2,7 +2,7 @@
   "name": "native-state-site-scripts",
   "version": "1.0.0",
   "private": true,
-  "description": "Scripts for managing the /m members platform",
+  "description": "Scripts for managing the /world members platform",
   "scripts": {
     "extract": "node extract-artists.js",
     "import": "node import-invites.js"
