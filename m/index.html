@@ -72,6 +72,8 @@
   .tabs a:first-child { padding-left: 0; }
   .tabs a:hover { color: var(--fg); }
   .tabs a.active { color: var(--fg); border-bottom-color: var(--fg); }
+  .tabs .admin-only { display: none; }
+  body.is-admin .tabs .admin-only { display: inline-block; }
 
   /* ── Layout ── */
   .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
@@ -240,6 +242,34 @@
     font-size: 10px; letter-spacing: 0.1em; color: var(--fg-dim);
   }
 
+  /* ── Admin ── */
+  .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .admin-section h3 {
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 11px; letter-spacing: 0.16em; color: var(--fg);
+    margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .invite-row {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-light);
+    align-items: center;
+  }
+  .invite-row .info { min-width: 0; }
+  .invite-row .email { font-size: 13px; font-weight: 400; word-break: break-all; }
+  .invite-row .meta {
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 9px; letter-spacing: 0.1em; color: var(--fg-dim); margin-top: 3px;
+  }
+  .invite-row .meta .used { color: #4ade80; }
+  .invite-row .meta .unused { color: var(--fg-dim); }
+  .invite-row button {
+    background: none; border: 1px solid var(--border); color: var(--fg-dim);
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 9px; letter-spacing: 0.1em; padding: 4px 8px;
+  }
+  .invite-row button:hover { border-color: var(--danger); color: var(--danger); }
+  @media (max-width: 720px) { .admin-grid { grid-template-columns: 1fr; gap: 24px; } }
+
   /* ── Modal (event create) ── */
   .modal-bg {
     position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 90%, transparent);
@@ -291,6 +321,7 @@
   <a href="#calendar" data-tab="calendar">CALENDAR</a>
   <a href="#chat" data-tab="chat">CHAT</a>
   <a href="#profile" data-tab="profile">PROFILE</a>
+  <a href="#admin" data-tab="admin" class="admin-only">ADMIN</a>
 </div>
 
 <main id="app"></main>
@@ -304,7 +335,7 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, addDoc, query, where, orderBy, onSnapshot,
-  serverTimestamp, Timestamp
+  serverTimestamp, Timestamp, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 import {
   getDatabase, ref as dbRef, push, onValue, onDisconnect, set as dbSet,
@@ -364,6 +395,7 @@ const cleanupSubs = () => { state.unsubs.forEach(u => { try { u(); } catch(e){} 
 // ── Topbar render ───────────────────────────────────────────────────────────
 function renderTopbar() {
   const right = $('topbar-right');
+  document.body.classList.toggle('is-admin', state.profile?.role === 'admin');
   if (state.user && state.profile) {
     right.innerHTML = `
       <span class="me">@${escape(state.profile.handle)}</span>
@@ -498,6 +530,7 @@ function route() {
   else if (hash === 'calendar')  renderCalendar();
   else if (hash === 'chat')      renderChat();
   else if (hash === 'profile')   renderProfile(false);
+  else if (hash === 'admin')     renderAdmin();
   else { location.hash = 'directory'; }
 }
 
@@ -913,6 +946,176 @@ function renderProfile(forceComplete) {
       $('p-msg').innerHTML = '<span class="msg error">' + escape(err.message) + '</span>';
     }
   };
+}
+
+// ── Admin view ──────────────────────────────────────────────────────────────
+function renderAdmin() {
+  cleanupSubs();
+  if (state.profile?.role !== 'admin') {
+    $('app').innerHTML = `<div class="container"><div class="view"><div class="msg error">Admin access required.</div></div></div>`;
+    return;
+  }
+  $('app').innerHTML = `
+    <div class="container">
+      <div class="view">
+        <div class="view-header">
+          <div class="view-title">Admin</div>
+          <div class="view-subtitle">INVITES · <span id="invite-count">…</span></div>
+        </div>
+        <div class="admin-grid">
+          <div class="admin-section">
+            <h3>ADD INVITE</h3>
+            <form id="add-invite-form">
+              <div class="field">
+                <label>EMAIL</label>
+                <input id="ai-email" type="email" required placeholder="artist@example.com" />
+              </div>
+              <div class="field">
+                <label>NAME</label>
+                <input id="ai-name" type="text" required placeholder="Full name" />
+              </div>
+              <div class="field">
+                <label>JOINED SHOW</label>
+                <input id="ai-show" type="text" placeholder="Native State 4.0" />
+              </div>
+              <div class="field">
+                <label>ROLE</label>
+                <select id="ai-role">
+                  <option value="artist" selected>Artist</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button class="btn" type="submit">ADD INVITE</button>
+              <span id="ai-msg" style="margin-left: 12px;"></span>
+            </form>
+
+            <h3 style="margin-top: 40px;">BULK ADD</h3>
+            <div class="field">
+              <label>CSV (one per line: email,name,joined_show,role)</label>
+              <textarea id="bulk-csv" rows="6" placeholder="alice@example.com,Alice Smith,Native State 1.0,artist
+bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
+              <div class="hint">Existing invites with the same email are updated, not duplicated.</div>
+            </div>
+            <button class="btn" id="bulk-add-btn">IMPORT</button>
+            <span id="bulk-msg" style="margin-left: 12px;"></span>
+          </div>
+
+          <div class="admin-section">
+            <h3>EXISTING INVITES</h3>
+            <div id="invite-list"><div class="empty">LOADING…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Subscribe to invites collection
+  const unsub = onSnapshot(collection(fs, 'invites'), (snap) => {
+    const invs = snap.docs.map(d => ({ email: d.id, ...d.data() }))
+      .sort((a, b) => (a.invited_at?.seconds || 0) > (b.invited_at?.seconds || 0) ? -1 : 1);
+    renderInviteList(invs);
+    $('invite-count').textContent = invs.length;
+  }, (err) => {
+    console.error(err);
+    $('invite-list').innerHTML = `<div class="msg error">${escape(err.message)}</div>`;
+  });
+  state.unsubs.push(unsub);
+
+  // Add single invite
+  $('add-invite-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $('ai-email').value.trim().toLowerCase();
+    const name = $('ai-name').value.trim();
+    const joined_show = $('ai-show').value.trim();
+    const role = $('ai-role').value;
+    const msg = $('ai-msg');
+    if (!email.includes('@') || !name) {
+      msg.innerHTML = '<span class="msg error" style="display:inline-block;padding:4px 8px;">Email and name required.</span>';
+      return;
+    }
+    try {
+      await setDoc(doc(fs, 'invites', email), {
+        name, joined_show, role,
+        invited_at: serverTimestamp(),
+        used: false,
+      }, { merge: true });
+      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">ADDED</span>';
+      $('add-invite-form').reset();
+      setTimeout(() => msg.innerHTML = '', 2000);
+    } catch (err) {
+      console.error(err);
+      msg.innerHTML = `<span class="msg error" style="display:inline-block;padding:4px 8px;">${escape(err.message)}</span>`;
+    }
+  };
+
+  // Bulk import
+  $('bulk-add-btn').onclick = async () => {
+    const text = $('bulk-csv').value.trim();
+    const msg = $('bulk-msg');
+    if (!text) return;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let ok = 0, fail = 0;
+    msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">IMPORTING…</span>';
+    const batch = writeBatch(fs);
+    for (const line of lines) {
+      const [emailRaw, nameRaw, showRaw, roleRaw] = line.split(',').map(s => (s || '').trim());
+      const email = (emailRaw || '').toLowerCase();
+      if (!email.includes('@') || !nameRaw) { fail++; continue; }
+      batch.set(doc(fs, 'invites', email), {
+        name: nameRaw,
+        joined_show: showRaw || '',
+        role: roleRaw || 'artist',
+        invited_at: serverTimestamp(),
+        used: false,
+      }, { merge: true });
+      ok++;
+    }
+    try {
+      await batch.commit();
+      msg.innerHTML = `<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">IMPORTED ${ok}${fail ? ' · SKIPPED ' + fail : ''}</span>`;
+      $('bulk-csv').value = '';
+      setTimeout(() => msg.innerHTML = '', 4000);
+    } catch (err) {
+      console.error(err);
+      msg.innerHTML = `<span class="msg error" style="display:inline-block;padding:4px 8px;">${escape(err.message)}</span>`;
+    }
+  };
+}
+
+function renderInviteList(invs) {
+  const list = $('invite-list');
+  if (!list) return;
+  if (invs.length === 0) {
+    list.innerHTML = '<div class="empty">NO INVITES YET</div>';
+    return;
+  }
+  list.innerHTML = invs.map(inv => {
+    const usedTag = inv.used
+      ? '<span class="used">USED</span>'
+      : '<span class="unused">PENDING</span>';
+    const meta = [
+      escape(inv.name || '—'),
+      inv.joined_show ? escape(inv.joined_show) : null,
+      escape((inv.role || 'artist').toUpperCase()),
+      usedTag,
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="invite-row">
+        <div class="info">
+          <div class="email">${escape(inv.email)}</div>
+          <div class="meta">${meta}</div>
+        </div>
+        <button data-del-inv="${escape(inv.email)}" ${inv.used ? 'disabled' : ''}>${inv.used ? '—' : 'REVOKE'}</button>
+      </div>`;
+  }).join('');
+  list.querySelectorAll('[data-del-inv]').forEach(b => {
+    b.onclick = async () => {
+      const email = b.dataset.delInv;
+      if (!confirm('Revoke invite for ' + email + '?')) return;
+      try { await deleteDoc(doc(fs, 'invites', email)); }
+      catch (err) { alert(err.message); }
+    };
+  });
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
