@@ -1054,44 +1054,53 @@ function renderEventList() {
 
 function openEventModal(prefill = {}) {
   const isAdmin = state.profile.role === 'admin';
+  const editing = prefill.event || null;
+  const pad = (n) => String(n).padStart(2, '0');
+  const dtLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const titleVal = editing ? escape(editing.title || '') : '';
+  const locVal   = editing ? escape(editing.location || '') : '';
+  const descVal  = editing ? escape(editing.description || '') : '';
+  const startVal = editing ? dtLocal(fmtDate(editing.start_ts)) : '';
+  const endVal   = editing && editing.end_ts ? dtLocal(fmtDate(editing.end_ts)) : '';
+  const typeVal  = editing ? (editing.type || 'member') : 'member';
   const html = `
     <div class="modal-bg" id="modal-bg">
       <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-head">
-          <span class="title">Post event</span>
+          <span class="title">${editing ? 'Edit event' : 'Post event'}</span>
           <button class="close" id="modal-close">CLOSE ×</button>
         </div>
         <form id="event-form">
           <div class="field">
             <label>TITLE</label>
-            <input id="ev-title" type="text" required maxlength="120" />
+            <input id="ev-title" type="text" required maxlength="120" value="${titleVal}" />
           </div>
           <div class="field">
             <label>STARTS</label>
-            <input id="ev-when" type="datetime-local" required />
+            <input id="ev-when" type="datetime-local" required value="${startVal}" />
           </div>
           <div class="field">
             <label>ENDS (OPTIONAL)</label>
-            <input id="ev-when-end" type="datetime-local" />
+            <input id="ev-when-end" type="datetime-local" value="${endVal}" />
             <div class="hint">Leave blank for a single time. For multi-day events (e.g. June 6 – June 11), set the last day here.</div>
           </div>
           <div class="field">
             <label>LOCATION</label>
-            <input id="ev-loc" type="text" placeholder="DTLA, Eastern Gallery, address…" maxlength="160" />
+            <input id="ev-loc" type="text" placeholder="DTLA, Eastern Gallery, address…" maxlength="160" value="${locVal}" />
           </div>
           <div class="field">
             <label>DESCRIPTION</label>
-            <textarea id="ev-desc" maxlength="800" placeholder="What is it? Who's it for?"></textarea>
+            <textarea id="ev-desc" maxlength="800" placeholder="What is it? Who's it for?">${descVal}</textarea>
           </div>
           ${isAdmin ? `
           <div class="field">
             <label>TYPE</label>
             <select id="ev-type">
-              <option value="member" selected>Member event</option>
-              <option value="ns">Native State (official)</option>
+              <option value="member" ${typeVal === 'member' ? 'selected' : ''}>Member event</option>
+              <option value="ns" ${typeVal === 'ns' ? 'selected' : ''}>Native State (official)</option>
             </select>
           </div>` : ''}
-          <button class="btn" type="submit">POST EVENT</button>
+          <button class="btn" type="submit">${editing ? 'SAVE CHANGES' : 'POST EVENT'}</button>
         </form>
         <div id="ev-msg"></div>
       </div>
@@ -1100,12 +1109,13 @@ function openEventModal(prefill = {}) {
   document.body.insertAdjacentHTML('beforeend', html);
   $('modal-close').onclick = closeModal;
   $('modal-bg').onclick = (e) => { if (e.target === $('modal-bg')) closeModal(); };
-  // Prefill date if provided
-  if (prefill.start_ts) {
+  // Prefill date for click-to-create flow (no editing event)
+  if (!editing && prefill.start_ts) {
     const d = prefill.start_ts;
-    const pad = (n) => String(n).padStart(2, '0');
-    $('ev-when').value =
-      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    $('ev-when').value = dtLocal(d);
+    setTimeout(() => $('ev-title').focus(), 0);
+  }
+  if (editing) {
     setTimeout(() => $('ev-title').focus(), 0);
   }
   $('event-form').onsubmit = async (e) => {
@@ -1115,13 +1125,12 @@ function openEventModal(prefill = {}) {
     const whenEnd = $('ev-when-end').value;
     const loc = $('ev-loc').value.trim();
     const desc = $('ev-desc').value.trim();
-    const type = isAdmin ? $('ev-type').value : 'member';
+    const type = isAdmin ? $('ev-type').value : (editing ? editing.type : 'member');
     if (!title || !when) return;
     const startDate = new Date(when);
     const start_ts = Timestamp.fromDate(startDate);
     const data = {
-      title, location: loc, description: desc, type,
-      start_ts, host_uid: state.user.uid, created_at: serverTimestamp(),
+      title, location: loc, description: desc, type, start_ts,
     };
     if (whenEnd) {
       const endDate = new Date(whenEnd);
@@ -1130,9 +1139,18 @@ function openEventModal(prefill = {}) {
         return;
       }
       data.end_ts = Timestamp.fromDate(endDate);
+    } else if (editing && editing.end_ts) {
+      // Cleared an existing end date — explicitly null it out.
+      data.end_ts = null;
     }
     try {
-      await addDoc(collection(fs, 'events'), data);
+      if (editing) {
+        await updateDoc(doc(fs, 'events', editing.id), data);
+      } else {
+        data.host_uid = state.user.uid;
+        data.created_at = serverTimestamp();
+        await addDoc(collection(fs, 'events'), data);
+      }
       closeModal();
     } catch (err) {
       console.error(err);
@@ -1193,7 +1211,10 @@ function openEventDetail(eventId) {
               <button data-rsvp="no" class="${myStatus === 'no' ? 'active' : ''}">NO</button>
             </div>
           </div>
-          ${(isHost || isAdmin) ? `<button class="btn ghost small" id="ev-detail-del">DELETE EVENT</button>` : ''}
+          ${(isHost || isAdmin) ? `
+            <button class="btn ghost small" id="ev-detail-edit">EDIT</button>
+            <button class="btn ghost small" id="ev-detail-del">DELETE</button>
+          ` : ''}
         </div>
       </div>
     </div>`;
@@ -1212,6 +1233,11 @@ function openEventDetail(eventId) {
       } catch (err) { console.error(err); }
     };
   });
+  const editBtn = $('ev-detail-edit');
+  if (editBtn) editBtn.onclick = () => {
+    closeModal();
+    openEventModal({ event: ev });
+  };
   const delBtn = $('ev-detail-del');
   if (delBtn) delBtn.onclick = async () => {
     if (!confirm('Delete this event?')) return;
