@@ -266,7 +266,7 @@
   }
   .cal-actions { margin-bottom: 24px; }
   .event-row {
-    display: grid; grid-template-columns: 90px 1fr 200px;
+    display: grid; grid-template-columns: 90px 1fr;
     gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--border);
     align-items: start;
   }
@@ -879,7 +879,6 @@ function renderCalendar() {
   const unsub = onSnapshot(q, (snap) => {
     state.events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderCalBody();
-    state.events.forEach(ev => subscribeRsvps(ev.id));
   });
   state.unsubs.push(unsub);
 }
@@ -1003,13 +1002,10 @@ function renderEventList() {
       : '';
     const host = state.members.find(m => m.uid === ev.host_uid);
     const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
-    const counts = state.rsvps[ev.id] || {};
-    const yes = Object.values(counts).filter(v => v === 'yes').length;
-    const maybe = Object.values(counts).filter(v => v === 'maybe').length;
-    const myStatus = state.myRsvps[ev.id];
     const isHost = ev.host_uid === state.user.uid;
+    const isAdmin = state.profile.role === 'admin';
     return `
-      <div class="event-row">
+      <div class="event-row" data-event-id="${ev.id}" style="cursor:pointer;">
         <div class="event-date">
           <span class="day">${day}</span>
           <span class="month">${mon}</span>
@@ -1021,34 +1017,13 @@ function renderEventList() {
           <div class="meta">
             <span class="badge ${ev.type}">${ev.type === 'ns' ? 'NATIVE STATE' : 'MEMBER'}</span>
             ${escape(hostHandle)}${ev.location ? ' · ' + escape(ev.location) : ''}
-            ${isHost ? `<button class="btn small ghost" style="margin-left: 8px;" data-del="${ev.id}">DELETE</button>` : ''}
           </div>
           ${ev.description ? `<div class="desc">${escape(ev.description)}</div>` : ''}
         </div>
-        <div class="rsvp">
-          <div class="counts">${yes} GOING${maybe ? ' · ' + maybe + ' MAYBE' : ''}</div>
-          <div class="buttons">
-            <button data-rsvp="${ev.id}|yes" class="${myStatus === 'yes' ? 'active' : ''}">GOING</button>
-            <button data-rsvp="${ev.id}|maybe" class="${myStatus === 'maybe' ? 'active' : ''}">MAYBE</button>
-            <button data-rsvp="${ev.id}|no" class="${myStatus === 'no' ? 'active' : ''}">NO</button>
-          </div>
-        </div>
       </div>`;
   }).join('');
-  list.querySelectorAll('[data-rsvp]').forEach(b => {
-    b.onclick = async () => {
-      const [eid, status] = b.dataset.rsvp.split('|');
-      try {
-        await setDoc(doc(fs, 'events', eid, 'rsvps', state.user.uid),
-          { status, ts: serverTimestamp() });
-      } catch (e) { console.error(e); }
-    };
-  });
-  list.querySelectorAll('[data-del]').forEach(b => {
-    b.onclick = async () => {
-      if (!confirm('Delete this event?')) return;
-      try { await deleteDoc(doc(fs, 'events', b.dataset.del)); } catch (e) { console.error(e); }
-    };
+  list.querySelectorAll('[data-event-id]').forEach(row => {
+    row.onclick = () => openEventDetail(row.dataset.eventId);
   });
 }
 
@@ -1180,11 +1155,6 @@ function openEventDetail(eventId) {
   }
   const host = state.members.find(m => m.uid === ev.host_uid);
   const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
-  const counts = state.rsvps[ev.id] || {};
-  const yes = Object.values(counts).filter(v => v === 'yes').length;
-  const maybe = Object.values(counts).filter(v => v === 'maybe').length;
-  const no = Object.values(counts).filter(v => v === 'no').length;
-  const myStatus = state.myRsvps[ev.id];
   const isHost = ev.host_uid === state.user.uid;
   const isAdmin = state.profile.role === 'admin';
   const html = `
@@ -1202,37 +1172,17 @@ function openEventDetail(eventId) {
         <div style="margin-bottom: 14px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: var(--fg-dim);">${escape(timeStr)}</div>
         ${ev.location ? `<div style="margin-bottom: 14px; font-size: 13px;">📍 ${escape(ev.location)}</div>` : ''}
         ${ev.description ? `<div style="font-size: 14px; color: var(--fg); line-height: 1.6; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 16px 0;">${escape(ev.description)}</div>` : ''}
-        <div style="display: flex; align-items: baseline; gap: 16px; margin-top: 20px;">
-          <div class="rsvp">
-            <div class="counts">${yes} GOING${maybe ? ' · ' + maybe + ' MAYBE' : ''}${no ? ' · ' + no + ' NO' : ''}</div>
-            <div class="buttons">
-              <button data-rsvp="yes" class="${myStatus === 'yes' ? 'active' : ''}">GOING</button>
-              <button data-rsvp="maybe" class="${myStatus === 'maybe' ? 'active' : ''}">MAYBE</button>
-              <button data-rsvp="no" class="${myStatus === 'no' ? 'active' : ''}">NO</button>
-            </div>
-          </div>
-          ${(isHost || isAdmin) ? `
+        ${(isHost || isAdmin) ? `
+          <div style="display: flex; gap: 8px; margin-top: 20px;">
             <button class="btn ghost small" id="ev-detail-edit">EDIT</button>
             <button class="btn ghost small" id="ev-detail-del">DELETE</button>
-          ` : ''}
-        </div>
+          </div>
+        ` : ''}
       </div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
   $('modal-close').onclick = closeModal;
   $('modal-bg').onclick = (e) => { if (e.target === $('modal-bg')) closeModal(); };
-  document.querySelectorAll('[data-rsvp]').forEach(b => {
-    b.onclick = async () => {
-      const status = b.dataset.rsvp;
-      try {
-        await setDoc(doc(fs, 'events', ev.id, 'rsvps', state.user.uid),
-          { status, ts: serverTimestamp() });
-        // Refresh modal to show new active state
-        closeModal();
-        openEventDetail(ev.id);
-      } catch (err) { console.error(err); }
-    };
-  });
   const editBtn = $('ev-detail-edit');
   if (editBtn) editBtn.onclick = () => {
     closeModal();
