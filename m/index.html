@@ -191,6 +191,74 @@
   .topbar .right .avatar { margin-right: -4px; }
 
   /* ── Calendar ── */
+  .cal-toolbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .cal-toolbar .spacer { flex: 1; }
+  .cal-nav { display: flex; gap: 4px; }
+  .cal-nav button {
+    padding: 6px 12px; background: transparent; color: var(--fg);
+    border: 1px solid var(--border);
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 10px; letter-spacing: 0.1em; cursor: pointer;
+  }
+  .cal-nav button:hover { border-color: var(--fg); }
+  .cal-view-toggle { display: flex; gap: 0; border: 1px solid var(--border); }
+  .cal-view-toggle button {
+    padding: 6px 14px; background: transparent; color: var(--fg-dim);
+    border: none;
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+  }
+  .cal-view-toggle button.active { background: var(--fg); color: var(--bg); }
+  .cal-month-label {
+    font-size: 18px; font-weight: 400; letter-spacing: -0.01em;
+  }
+  .cal-day-headers {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 9px; letter-spacing: 0.16em; color: var(--fg-dim);
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .cal-day-headers > div { text-align: left; padding-left: 8px; }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-top: none;
+  }
+  .cal-day {
+    background: var(--bg); min-height: 110px; padding: 6px 8px;
+    cursor: pointer; position: relative;
+    transition: background 0.12s ease;
+    overflow: hidden;
+  }
+  .cal-day:hover { background: var(--border-light); }
+  .cal-day-num {
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 11px; color: var(--fg-dim); letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .cal-day.today { background: var(--border-light); }
+  .cal-day.today .cal-day-num { color: var(--fg); font-weight: 500; }
+  .cal-day.other-month { background: var(--border-light); }
+  .cal-day.other-month .cal-day-num { color: var(--fg-faint); }
+  .cal-day.other-month .cal-event { opacity: 0.5; }
+  .cal-event {
+    display: block; margin-top: 3px; padding: 2px 6px;
+    background: var(--fg); color: var(--bg);
+    font-size: 11px; line-height: 1.3; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border: 1px solid var(--fg);
+  }
+  .cal-event.member { background: transparent; color: var(--fg); }
+  .cal-event:hover { opacity: 0.85; }
+  @media (max-width: 720px) {
+    .cal-day { min-height: 70px; padding: 4px 5px; }
+    .cal-day-num { font-size: 10px; }
+    .cal-event { font-size: 10px; padding: 1px 4px; }
+    .cal-day-headers { font-size: 8px; }
+  }
   .cal-actions { margin-bottom: 24px; }
   .event-row {
     display: grid; grid-template-columns: 90px 1fr 200px;
@@ -422,6 +490,11 @@ const state = {
   rsvps: {},         // eventId -> { uid -> status }
   myRsvps: {},       // eventId -> status (for current user)
   unsubs: [],
+  cal: {
+    view: localStorage.getItem('m_cal_view') || 'grid',  // 'grid' | 'list'
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+  },
 };
 
 const cleanupSubs = () => { state.unsubs.forEach(u => { try { u(); } catch(e){} }); state.unsubs = []; };
@@ -703,25 +776,131 @@ function renderCalendar() {
       <div class="view">
         <div class="view-header">
           <div class="view-title">Calendar</div>
-          <div class="view-subtitle">UPCOMING EVENTS</div>
+          <div class="view-subtitle" id="cal-subtitle"></div>
         </div>
-        <div class="cal-actions">
+        <div class="cal-toolbar">
+          <div class="cal-month-label" id="cal-month-label"></div>
+          <div class="cal-nav">
+            <button id="cal-prev">‹ PREV</button>
+            <button id="cal-today">TODAY</button>
+            <button id="cal-next">NEXT ›</button>
+          </div>
+          <span class="spacer"></span>
+          <div class="cal-view-toggle">
+            <button data-view="grid">GRID</button>
+            <button data-view="list">LIST</button>
+          </div>
           <button class="btn" id="new-event-btn">+ POST EVENT</button>
         </div>
-        <div id="event-list"><div class="empty">LOADING…</div></div>
+        <div id="cal-body"><div class="empty">LOADING…</div></div>
       </div>
     </div>
   `;
   $('new-event-btn').onclick = () => openEventModal();
+  $('cal-prev').onclick = () => { stepMonth(-1); };
+  $('cal-next').onclick = () => { stepMonth(1); };
+  $('cal-today').onclick = () => {
+    const now = new Date();
+    state.cal.year = now.getFullYear();
+    state.cal.month = now.getMonth();
+    renderCalBody();
+  };
+  document.querySelectorAll('.cal-view-toggle button').forEach(b => {
+    b.onclick = () => {
+      state.cal.view = b.dataset.view;
+      localStorage.setItem('m_cal_view', state.cal.view);
+      renderCalBody();
+    };
+  });
 
-  const since = Timestamp.fromDate(new Date(Date.now() - 24*3600*1000));
+  // Load events: a wide window so the grid can show past + future months.
+  // Keep the 1-day-back floor for the list view's "upcoming" semantics.
+  const since = Timestamp.fromDate(new Date(Date.now() - 90*24*3600*1000));
   const q = query(collection(fs, 'events'), where('start_ts', '>=', since), orderBy('start_ts'));
   const unsub = onSnapshot(q, (snap) => {
     state.events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderEventList();
+    renderCalBody();
     state.events.forEach(ev => subscribeRsvps(ev.id));
   });
   state.unsubs.push(unsub);
+}
+
+function stepMonth(delta) {
+  let m = state.cal.month + delta;
+  let y = state.cal.year;
+  while (m < 0) { m += 12; y--; }
+  while (m > 11) { m -= 12; y++; }
+  state.cal.month = m;
+  state.cal.year = y;
+  renderCalBody();
+}
+
+function renderCalBody() {
+  // Toolbar state
+  const monthLabel = new Date(state.cal.year, state.cal.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if ($('cal-month-label')) $('cal-month-label').textContent = monthLabel;
+  if ($('cal-subtitle')) $('cal-subtitle').textContent = state.cal.view === 'grid' ? monthLabel.toUpperCase() : 'UPCOMING';
+  document.querySelectorAll('.cal-view-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === state.cal.view);
+  });
+
+  if (state.cal.view === 'grid') renderCalGrid();
+  else renderEventList();
+}
+
+function renderCalGrid() {
+  const body = $('cal-body');
+  if (!body) return;
+
+  const first = new Date(state.cal.year, state.cal.month, 1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(state.cal.year, state.cal.month + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const todayStr = new Date().toDateString();
+
+  // Group events by local date string
+  const byDate = {};
+  for (const ev of state.events) {
+    const d = fmtDate(ev.start_ts).toDateString();
+    (byDate[d] = byDate[d] || []).push(ev);
+  }
+
+  const headers = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  let html = '<div class="cal-day-headers">' + headers.map(h => `<div>${h}</div>`).join('') + '</div>';
+  html += '<div class="cal-grid">';
+  for (let i = 0; i < totalCells; i++) {
+    const cell = new Date(state.cal.year, state.cal.month, i - startOffset + 1);
+    const isOther = cell.getMonth() !== state.cal.month;
+    const isToday = cell.toDateString() === todayStr;
+    const events = byDate[cell.toDateString()] || [];
+    const evHtml = events.slice(0, 3).map(ev => {
+      const t = fmtDate(ev.start_ts);
+      const tStr = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '');
+      return `<div class="cal-event ${ev.type}" data-event-id="${ev.id}" title="${escape(ev.title)} · ${escape(tStr)}">${escape(ev.title)}</div>`;
+    }).join('');
+    const more = events.length > 3 ? `<div class="cal-day-num" style="margin-top:2px;">+${events.length - 3} more</div>` : '';
+    // ISO date (YYYY-MM-DD) for the click handler — locale-independent
+    const iso = `${cell.getFullYear()}-${String(cell.getMonth()+1).padStart(2,'0')}-${String(cell.getDate()).padStart(2,'0')}`;
+    html += `
+      <div class="cal-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}" data-date="${iso}">
+        <div class="cal-day-num">${cell.getDate()}</div>
+        ${evHtml}${more}
+      </div>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+
+  body.querySelectorAll('.cal-event').forEach(c => {
+    c.onclick = (e) => { e.stopPropagation(); openEventDetail(c.dataset.eventId); };
+  });
+  body.querySelectorAll('.cal-day').forEach(d => {
+    d.onclick = (e) => {
+      if (e.target.closest('.cal-event')) return;
+      const [y, m, day] = d.dataset.date.split('-').map(Number);
+      const dt = new Date(y, m - 1, day, 19, 0); // default to 7pm
+      openEventModal({ start_ts: dt });
+    };
+  });
 }
 
 function subscribeRsvps(eventId) {
@@ -737,13 +916,16 @@ function subscribeRsvps(eventId) {
 }
 
 function renderEventList() {
-  const list = $('event-list');
+  const list = $('cal-body');
   if (!list) return;
-  if (state.events.length === 0) {
+  // List view shows only upcoming events (not past)
+  const now = Date.now();
+  const upcoming = state.events.filter(ev => fmtDate(ev.start_ts).getTime() >= now - 24*3600*1000);
+  if (upcoming.length === 0) {
     list.innerHTML = '<div class="empty">NO UPCOMING EVENTS · POST THE FIRST ONE</div>';
     return;
   }
-  list.innerHTML = state.events.map(ev => {
+  list.innerHTML = upcoming.map(ev => {
     const d = fmtDate(ev.start_ts);
     const day = d.getDate();
     const mon = d.toLocaleDateString([], { month: 'short' }).toUpperCase();
@@ -798,7 +980,7 @@ function renderEventList() {
   });
 }
 
-function openEventModal(prefill) {
+function openEventModal(prefill = {}) {
   const isAdmin = state.profile.role === 'admin';
   const html = `
     <div class="modal-bg" id="modal-bg">
@@ -841,6 +1023,14 @@ function openEventModal(prefill) {
   document.body.insertAdjacentHTML('beforeend', html);
   $('modal-close').onclick = closeModal;
   $('modal-bg').onclick = (e) => { if (e.target === $('modal-bg')) closeModal(); };
+  // Prefill date if provided
+  if (prefill.start_ts) {
+    const d = prefill.start_ts;
+    const pad = (n) => String(n).padStart(2, '0');
+    $('ev-when').value =
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setTimeout(() => $('ev-title').focus(), 0);
+  }
   $('event-form').onsubmit = async (e) => {
     e.preventDefault();
     const title = $('ev-title').value.trim();
@@ -863,6 +1053,72 @@ function openEventModal(prefill) {
   };
 }
 function closeModal() { const m = $('modal-bg'); if (m) m.remove(); }
+
+function openEventDetail(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return;
+  const d = fmtDate(ev.start_ts);
+  const dateStr = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const host = state.members.find(m => m.uid === ev.host_uid);
+  const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
+  const counts = state.rsvps[ev.id] || {};
+  const yes = Object.values(counts).filter(v => v === 'yes').length;
+  const maybe = Object.values(counts).filter(v => v === 'maybe').length;
+  const no = Object.values(counts).filter(v => v === 'no').length;
+  const myStatus = state.myRsvps[ev.id];
+  const isHost = ev.host_uid === state.user.uid;
+  const isAdmin = state.profile.role === 'admin';
+  const html = `
+    <div class="modal-bg" id="modal-bg">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <span class="title">${escape(ev.title)}</span>
+          <button class="close" id="modal-close">CLOSE ×</button>
+        </div>
+        <div style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--fg-dim); margin-bottom: 18px;">
+          <span class="badge ${ev.type}" style="display:inline-block; padding:1px 6px; border:1px solid var(--fg-dimmer); margin-right:8px; font-size:9px;">${ev.type === 'ns' ? 'NATIVE STATE' : 'MEMBER'}</span>
+          ${escape(hostHandle)}
+        </div>
+        <div style="margin-bottom: 6px; font-size: 14px;">${escape(dateStr)}</div>
+        <div style="margin-bottom: 14px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: var(--fg-dim);">${escape(timeStr)}</div>
+        ${ev.location ? `<div style="margin-bottom: 14px; font-size: 13px;">📍 ${escape(ev.location)}</div>` : ''}
+        ${ev.description ? `<div style="font-size: 14px; color: var(--fg); line-height: 1.6; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 16px 0;">${escape(ev.description)}</div>` : ''}
+        <div style="display: flex; align-items: baseline; gap: 16px; margin-top: 20px;">
+          <div class="rsvp">
+            <div class="counts">${yes} GOING${maybe ? ' · ' + maybe + ' MAYBE' : ''}${no ? ' · ' + no + ' NO' : ''}</div>
+            <div class="buttons">
+              <button data-rsvp="yes" class="${myStatus === 'yes' ? 'active' : ''}">GOING</button>
+              <button data-rsvp="maybe" class="${myStatus === 'maybe' ? 'active' : ''}">MAYBE</button>
+              <button data-rsvp="no" class="${myStatus === 'no' ? 'active' : ''}">NO</button>
+            </div>
+          </div>
+          ${(isHost || isAdmin) ? `<button class="btn ghost small" id="ev-detail-del">DELETE EVENT</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  $('modal-close').onclick = closeModal;
+  $('modal-bg').onclick = (e) => { if (e.target === $('modal-bg')) closeModal(); };
+  document.querySelectorAll('[data-rsvp]').forEach(b => {
+    b.onclick = async () => {
+      const status = b.dataset.rsvp;
+      try {
+        await setDoc(doc(fs, 'events', ev.id, 'rsvps', state.user.uid),
+          { status, ts: serverTimestamp() });
+        // Refresh modal to show new active state
+        closeModal();
+        openEventDetail(ev.id);
+      } catch (err) { console.error(err); }
+    };
+  });
+  const delBtn = $('ev-detail-del');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm('Delete this event?')) return;
+    try { await deleteDoc(doc(fs, 'events', ev.id)); closeModal(); }
+    catch (err) { console.error(err); }
+  };
+}
 
 // ── Chat view ───────────────────────────────────────────────────────────────
 function renderChat() {
