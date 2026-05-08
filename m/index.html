@@ -168,6 +168,28 @@
   }
   .presence-dot.online { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
 
+  /* ── Avatars ── */
+  .avatar {
+    display: inline-block; vertical-align: middle; flex-shrink: 0;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--border-light); object-fit: cover;
+    border: 1px solid var(--border);
+  }
+  .avatar-sm { width: 22px; height: 22px; }
+  .avatar-xs { width: 18px; height: 18px; }
+  .avatar-lg { width: 64px; height: 64px; }
+  .avatar-placeholder {
+    display: inline-grid; place-items: center;
+    background: var(--border-light); color: var(--fg-dim);
+    font-family: 'ABCMonumentGroteskMono', monospace;
+    font-size: 13px; letter-spacing: 0.05em;
+  }
+  .avatar-sm.avatar-placeholder, .avatar-xs.avatar-placeholder { font-size: 9px; }
+  .avatar-lg.avatar-placeholder { font-size: 22px; }
+  .dir-card-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+  .dir-card-head .info { min-width: 0; }
+  .topbar .right .avatar { margin-right: -4px; }
+
   /* ── Calendar ── */
   .cal-actions { margin-bottom: 24px; }
   .event-row {
@@ -341,6 +363,9 @@ import {
   getDatabase, ref as dbRef, push, onValue, onDisconnect, set as dbSet,
   serverTimestamp as rtdbServerTimestamp, query as dbQuery, limitToLast, orderByChild
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js';
+import {
+  getStorage, ref as stRef, uploadBytes, getDownloadURL, deleteObject
+} from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js';
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBeGFAqHfBjWHKa0TSaAXwQXRYr0cUGstQ",
@@ -356,6 +381,7 @@ const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
 const fs = getFirestore(app);
 const rtdb = getDatabase(app);
+const storage = getStorage(app);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -366,6 +392,14 @@ const fmtDate = (ts) => {
 };
 const fmtTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const fmtDateLine = (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+const avatarHtml = (profile, size = '') => {
+  const cls = size ? `avatar avatar-${size}` : 'avatar';
+  if (profile?.avatar) {
+    return `<img class="${cls}" src="${escape(profile.avatar)}" alt="" referrerpolicy="no-referrer" />`;
+  }
+  const initial = (profile?.name || profile?.handle || '?').charAt(0).toUpperCase();
+  return `<span class="${cls} avatar-placeholder">${escape(initial)}</span>`;
+};
 const tsRel = (ts) => {
   if (!ts) return '';
   const d = new Date(ts);
@@ -398,6 +432,7 @@ function renderTopbar() {
   document.body.classList.toggle('is-admin', state.profile?.role === 'admin');
   if (state.user && state.profile) {
     right.innerHTML = `
+      ${avatarHtml(state.profile, 'sm')}
       <span class="me">@${escape(state.profile.handle)}</span>
       <button id="signout-btn">SIGN OUT</button>
     `;
@@ -476,11 +511,12 @@ async function ensureProfile() {
     const invite = inviteSnap.data();
     profile = {
       handle: '',
-      name: invite.name || '',
+      name: invite.name || state.user.displayName || '',
       email: email,
       bio: '',
       ig: '',
       website: '',
+      avatar: state.user.photoURL || '',
       tags: [],
       joined_show: invite.joined_show || '',
       role: invite.role || 'artist',
@@ -638,8 +674,13 @@ function renderDirectoryList() {
       const tags = (m.tags || []).slice(0, 3).map(t => `<span class="tag-pill" style="font-size:9px;">${escape(t)}</span>`).join(' ');
       return `
         <div class="dir-card">
-          <div class="handle">@${escape(m.handle)} <span class="presence-dot ${online ? 'online' : ''}"></span></div>
-          <div class="name">${escape(m.name)}</div>
+          <div class="dir-card-head">
+            ${avatarHtml(m)}
+            <div class="info">
+              <div class="handle">@${escape(m.handle)} <span class="presence-dot ${online ? 'online' : ''}"></span></div>
+              <div class="name">${escape(m.name)}</div>
+            </div>
+          </div>
           ${m.bio ? `<div class="bio">${escape(m.bio)}</div>` : ''}
           <div class="meta">${m.joined_show ? 'JOINED ' + escape(m.joined_show).toUpperCase() : ''}</div>
           ${tags ? `<div class="tag-list" style="margin-top: 10px;">${tags}</div>` : ''}
@@ -887,13 +928,19 @@ function renderChatMsgs(msgs) {
     const m = state.members.find(x => x.uid === uid);
     return m ? '@' + m.handle : uid.slice(0, 6);
   };
-  c.innerHTML = msgs.map(m => `
+  const member = (uid) => state.members.find(x => x.uid === uid);
+  c.innerHTML = msgs.map(m => {
+    const mem = member(m.from_uid);
+    return `
     <div class="msg-row">
-      <div class="from">${escape(handle(m.from_uid))}</div>
+      <div class="from" style="display:flex; align-items:center; gap:6px;">
+        ${avatarHtml(mem, 'xs')}
+        <span style="overflow:hidden; text-overflow:ellipsis;">${escape(handle(m.from_uid))}</span>
+      </div>
       <div class="body">${escape(m.body)}</div>
       <div class="ts mono">${tsRel(m.ts)}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   c.scrollTop = c.scrollHeight;
 }
 
@@ -911,6 +958,17 @@ function renderProfile(forceComplete) {
         </div>
         ${required ? '<div class="msg">Set your handle and name to continue. Everything else is optional and editable later.</div>' : ''}
         <form class="profile-form" id="profile-form">
+          <div class="field">
+            <label>PROFILE PHOTO</label>
+            <div style="display:flex; align-items:center; gap: 16px;">
+              <div id="p-avatar-host">${avatarHtml(p, 'lg')}</div>
+              <input id="p-avatar-file" type="file" accept="image/*" style="display:none;" />
+              <button class="btn ghost small" type="button" id="p-avatar-btn">UPLOAD</button>
+              ${p.avatar ? '<button class="btn ghost small" type="button" id="p-avatar-clear">REMOVE</button>' : ''}
+              <span id="p-avatar-msg" class="mono" style="font-size:10px; color:var(--fg-dim); letter-spacing:0.12em;"></span>
+            </div>
+            <div class="hint">JPG/PNG, &lt; 2MB.</div>
+          </div>
           <div class="field">
             <label>HANDLE *</label>
             <input id="p-handle" type="text" pattern="[a-z0-9_]+" required value="${escape(p.handle || '')}" placeholder="e.g. seungmin" />
@@ -969,6 +1027,52 @@ function renderProfile(forceComplete) {
     } catch (err) {
       console.error(err);
       $('p-msg').innerHTML = '<span class="msg error">' + escape(err.message) + '</span>';
+    }
+  };
+
+  // ── Avatar upload ──
+  $('p-avatar-btn').onclick = () => $('p-avatar-file').click();
+  $('p-avatar-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const msg = $('p-avatar-msg');
+    if (file.size > 2 * 1024 * 1024) {
+      msg.innerHTML = '<span style="color: var(--danger);">FILE > 2MB</span>';
+      return;
+    }
+    msg.textContent = 'UPLOADING…';
+    try {
+      const r = stRef(storage, 'avatars/' + state.user.uid);
+      await uploadBytes(r, file, { contentType: file.type });
+      const url = await getDownloadURL(r);
+      // Append a cache-buster so the new image shows immediately
+      const cacheBustedUrl = url + '&t=' + Date.now();
+      await updateDoc(doc(fs, 'users', state.user.uid), { avatar: cacheBustedUrl });
+      state.profile.avatar = cacheBustedUrl;
+      $('p-avatar-host').innerHTML = avatarHtml(state.profile, 'lg');
+      msg.textContent = 'SAVED';
+      renderTopbar();
+      // Re-render form to show REMOVE button if it wasn't there
+      if (!document.getElementById('p-avatar-clear')) renderProfile(false);
+    } catch (err) {
+      console.error(err);
+      msg.innerHTML = '<span style="color: var(--danger);">' + escape(err.message) + '</span>';
+    }
+  };
+  const clearBtn = $('p-avatar-clear');
+  if (clearBtn) clearBtn.onclick = async () => {
+    if (!confirm('Remove profile photo?')) return;
+    const msg = $('p-avatar-msg');
+    msg.textContent = 'REMOVING…';
+    try {
+      try { await deleteObject(stRef(storage, 'avatars/' + state.user.uid)); } catch (_) {}
+      await updateDoc(doc(fs, 'users', state.user.uid), { avatar: '' });
+      state.profile.avatar = '';
+      renderProfile(false);
+      renderTopbar();
+    } catch (err) {
+      console.error(err);
+      msg.innerHTML = '<span style="color: var(--danger);">' + escape(err.message) + '</span>';
     }
   };
 }
