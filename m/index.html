@@ -253,6 +253,11 @@
   }
   .cal-event.member { background: transparent; color: var(--fg); }
   .cal-event:hover { opacity: 0.85; }
+  /* Multi-day continuation cues */
+  .cal-event[data-role="start"]::after { content: ' →'; opacity: 0.7; }
+  .cal-event[data-role="middle"]::before { content: '→ '; opacity: 0.7; }
+  .cal-event[data-role="middle"]::after { content: ' →'; opacity: 0.7; }
+  .cal-event[data-role="end"]::before { content: '→ '; opacity: 0.7; }
   @media (max-width: 720px) {
     .cal-day { min-height: 70px; padding: 4px 5px; }
     .cal-day-num { font-size: 10px; }
@@ -492,6 +497,22 @@ const fmtDate = (ts) => {
 };
 const fmtTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const fmtDateLine = (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+// Expand an event into a list of dates it covers (date-only, hours stripped).
+function eventDates(ev) {
+  const start = fmtDate(ev.start_ts);
+  const end = ev.end_ts ? fmtDate(ev.end_ts) : start;
+  const out = [];
+  const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  // Cap at 31 days as a sanity limit so a malformed event can't blow up the grid.
+  let safety = 0;
+  while (cur.getTime() <= last.getTime() && safety++ < 60) {
+    out.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
 const avatarHtml = (profile, size = '') => {
   const cls = size ? `avatar avatar-${size}` : 'avatar';
   if (profile?.avatar) {
@@ -896,11 +917,17 @@ function renderCalGrid() {
   const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
   const todayStr = new Date().toDateString();
 
-  // Group events by local date string
+  // Group events by local date string. Multi-day events appear on every day
+  // they cover, with a `role` describing position so the chip shows arrows.
   const byDate = {};
   for (const ev of state.events) {
-    const d = fmtDate(ev.start_ts).toDateString();
-    (byDate[d] = byDate[d] || []).push(ev);
+    const dates = eventDates(ev);
+    for (let i = 0; i < dates.length; i++) {
+      const key = dates[i].toDateString();
+      const role = dates.length === 1 ? 'single' :
+                   (i === 0 ? 'start' : (i === dates.length - 1 ? 'end' : 'middle'));
+      (byDate[key] = byDate[key] || []).push({ ev, role });
+    }
   }
 
   const headers = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -911,10 +938,10 @@ function renderCalGrid() {
     const isOther = cell.getMonth() !== state.cal.month;
     const isToday = cell.toDateString() === todayStr;
     const events = byDate[cell.toDateString()] || [];
-    const evHtml = events.slice(0, 3).map(ev => {
+    const evHtml = events.slice(0, 3).map(({ ev, role }) => {
       const t = fmtDate(ev.start_ts);
       const tStr = t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '');
-      return `<div class="cal-event ${ev.type}" data-event-id="${ev.id}" title="${escape(ev.title)} · ${escape(tStr)}">${escape(ev.title)}</div>`;
+      return `<div class="cal-event ${ev.type}" data-event-id="${ev.id}" data-role="${role}" title="${escape(ev.title)} · ${escape(tStr)}">${escape(ev.title)}</div>`;
     }).join('');
     const more = events.length > 3 ? `<div class="cal-day-num" style="margin-top:2px;">+${events.length - 3} more</div>` : '';
     // ISO date (YYYY-MM-DD) for the click handler — locale-independent
@@ -965,9 +992,15 @@ function renderEventList() {
   }
   list.innerHTML = upcoming.map(ev => {
     const d = fmtDate(ev.start_ts);
+    const dEnd = ev.end_ts ? fmtDate(ev.end_ts) : null;
     const day = d.getDate();
     const mon = d.toLocaleDateString([], { month: 'short' }).toUpperCase();
-    const time = fmtTime(d);
+    const time = (dEnd && sameDay(d, dEnd))
+      ? `${fmtTime(d)} – ${fmtTime(dEnd)}`
+      : fmtTime(d);
+    const rangeLine = (dEnd && !sameDay(d, dEnd))
+      ? `<span style="display:block;font-size:9px;color:var(--fg-dim);margin-top:2px;">→ ${escape(dEnd.toLocaleDateString([], { month:'short', day:'numeric' }).toUpperCase())}</span>`
+      : '';
     const host = state.members.find(m => m.uid === ev.host_uid);
     const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
     const counts = state.rsvps[ev.id] || {};
@@ -981,6 +1014,7 @@ function renderEventList() {
           <span class="day">${day}</span>
           <span class="month">${mon}</span>
           <span class="time">${time}</span>
+          ${rangeLine}
         </div>
         <div class="event-body">
           <div class="title">${escape(ev.title)}</div>
@@ -1033,8 +1067,13 @@ function openEventModal(prefill = {}) {
             <input id="ev-title" type="text" required maxlength="120" />
           </div>
           <div class="field">
-            <label>DATE & TIME</label>
+            <label>STARTS</label>
             <input id="ev-when" type="datetime-local" required />
+          </div>
+          <div class="field">
+            <label>ENDS (OPTIONAL)</label>
+            <input id="ev-when-end" type="datetime-local" />
+            <div class="hint">Leave blank for a single time. For multi-day events (e.g. June 6 – June 11), set the last day here.</div>
           </div>
           <div class="field">
             <label>LOCATION</label>
@@ -1073,16 +1112,27 @@ function openEventModal(prefill = {}) {
     e.preventDefault();
     const title = $('ev-title').value.trim();
     const when = $('ev-when').value;
+    const whenEnd = $('ev-when-end').value;
     const loc = $('ev-loc').value.trim();
     const desc = $('ev-desc').value.trim();
     const type = isAdmin ? $('ev-type').value : 'member';
     if (!title || !when) return;
-    const start_ts = Timestamp.fromDate(new Date(when));
+    const startDate = new Date(when);
+    const start_ts = Timestamp.fromDate(startDate);
+    const data = {
+      title, location: loc, description: desc, type,
+      start_ts, host_uid: state.user.uid, created_at: serverTimestamp(),
+    };
+    if (whenEnd) {
+      const endDate = new Date(whenEnd);
+      if (endDate.getTime() < startDate.getTime()) {
+        $('ev-msg').innerHTML = '<div class="msg error">End must be on or after start.</div>';
+        return;
+      }
+      data.end_ts = Timestamp.fromDate(endDate);
+    }
     try {
-      await addDoc(collection(fs, 'events'), {
-        title, location: loc, description: desc, type,
-        start_ts, host_uid: state.user.uid, created_at: serverTimestamp(),
-      });
+      await addDoc(collection(fs, 'events'), data);
       closeModal();
     } catch (err) {
       console.error(err);
@@ -1096,8 +1146,20 @@ function openEventDetail(eventId) {
   const ev = state.events.find(e => e.id === eventId);
   if (!ev) return;
   const d = fmtDate(ev.start_ts);
-  const dateStr = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dEnd = ev.end_ts ? fmtDate(ev.end_ts) : null;
+  let dateStr, timeStr;
+  if (dEnd && !sameDay(d, dEnd)) {
+    // Multi-day
+    dateStr = `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} – ${dEnd.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`;
+    timeStr = `${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${dEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  } else if (dEnd) {
+    // Same day, different times
+    dateStr = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    timeStr = `${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${dEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  } else {
+    dateStr = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
   const host = state.members.find(m => m.uid === ev.host_uid);
   const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
   const counts = state.rsvps[ev.id] || {};
