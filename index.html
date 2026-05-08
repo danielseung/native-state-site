@@ -78,9 +78,9 @@
     }
     .lb-inner { position: relative; max-width: 90vw; max-height: 90vh; }
     .lb-inner img { max-width: 90vw; max-height: 82vh; object-fit: contain; display: block; }
-    .lb-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; color: var(--fg-dim); }
+    .lb-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; color: var(--fg); }
     .lb-btn { background: none; border: 1px solid var(--border); padding: 6px 16px; cursor: pointer; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; letter-spacing: 0.08em; }
-    .lb-close { position: absolute; top: 24px; right: 32px; background: none; border: none; cursor: pointer; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: #666; letter-spacing: 0.1em; }
+    .lb-close { position: absolute; top: 24px; right: 32px; background: none; border: none; cursor: pointer; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: var(--fg); letter-spacing: 0.1em; }
 
     /* ── Layout ── */
     .topbar {
@@ -89,7 +89,7 @@
       display: grid; grid-template-columns: 1fr 1fr 1fr;
       align-items: center; padding: 10px 32px;
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
+      font-size: 10px; letter-spacing: 0.14em; color: var(--fg);
     }
     .topbar .brand { color: var(--fg); }
     .topbar .center { text-align: center; }
@@ -116,7 +116,7 @@
     }
     .hero-desc {
       font-size: 13px;
-      color: var(--fg-dim);
+      color: var(--fg);
       line-height: 1.7;
       font-weight: 300;
       max-width: 360px;
@@ -137,7 +137,7 @@
       padding: 10px 32px;
       border-bottom: 1px solid var(--border);
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.15em; color: var(--fg-dimmer);
+      font-size: 10px; letter-spacing: 0.15em; color: var(--fg);
     }
 
     /* ── Show row ── */
@@ -153,18 +153,18 @@
     }
     .show-num {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.1em; color: var(--fg-dim); padding-top: 3px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--fg); padding-top: 3px;
     }
     .show-num.upcoming { color: var(--fg); font-weight: 500; }
     .show-artists-inline { font-size: 14px; font-weight: 300; line-height: 1.5; }
     .show-artists-inline.upcoming { font-weight: 400; }
     .show-date-col {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 11px; color: var(--fg-dim); padding-top: 3px;
+      font-size: 11px; color: var(--fg); padding-top: 3px;
     }
     .show-status { font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; padding-top: 4px; }
     .badge-upcoming { border: 1px solid var(--fg); padding: 2px 8px; letter-spacing: 0.1em; display: inline-block; }
-    .badge-past { color: var(--fg-faint); letter-spacing: 0.1em; }
+    .badge-past { color: var(--fg); letter-spacing: 0.1em; }
 
     /* ── Spread (upcoming) ── */
     .show-spread {
@@ -177,7 +177,7 @@
     .spread-right { padding-top: 4px; }
     .spread-label {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.16em; color: var(--fg-dimmer); margin-bottom: 18px;
+      font-size: 10px; letter-spacing: 0.16em; color: var(--fg); margin-bottom: 18px;
     }
     .lineup-item {
       display: flex; gap: 14px; padding: 9px 0;
@@ -185,7 +185,7 @@
     }
     .lineup-num {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; color: var(--fg-dimmer); width: 20px; flex-shrink: 0;
+      font-size: 10px; color: var(--fg); width: 20px; flex-shrink: 0;
     }
     .lineup-name { font-size: 14px; font-weight: 300; }
     .countdown-row { display: flex; gap: 36px; margin-bottom: 28px; }
@@ -193,7 +193,7 @@
     .countdown-num { font-size: 40px; font-weight: 300; letter-spacing: -0.02em; line-height: 1; }
     .countdown-label {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 9px; color: var(--fg-dimmer); letter-spacing: 0.2em; margin-top: 5px;
+      font-size: 9px; color: var(--fg); letter-spacing: 0.2em; margin-top: 5px;
     }
     .mail-form { display: flex; }
     .mail-input {
@@ -210,7 +210,7 @@
     }
     .mail-done {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 11px; letter-spacing: 0.1em; color: var(--fg-dim);
+      font-size: 11px; letter-spacing: 0.1em; color: var(--fg);
     }
 
     /* ── Archive spread ── */
@@ -227,7 +227,7 @@
     }
     .doc-label {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.15em; color: var(--fg-dimmer); margin-bottom: 12px;
+      font-size: 10px; letter-spacing: 0.15em; color: var(--fg); margin-bottom: 12px;
     }
     .doc-photos {
       display: grid; grid-template-columns: repeat(4,1fr); gap: 4px;
@@ -258,7 +258,7 @@
     }
     .doc-section-date {
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; letter-spacing: 0.12em; color: var(--fg-dim);
+      font-size: 10px; letter-spacing: 0.12em; color: var(--fg);
     }
 
     /* ── Footer ── */
@@ -266,7 +266,7 @@
       padding: 28px 32px;
       display: grid; grid-template-columns: 1fr 1fr 1fr;
       font-family: 'ABCMonumentGroteskMono', monospace;
-      font-size: 10px; color: var(--fg-faint); letter-spacing: 0.1em;
+      font-size: 10px; color: var(--fg); letter-spacing: 0.1em;
       border-top: 1px solid var(--border-faint);
     }
     .footer .mid { text-align: center; }
@@ -502,7 +502,7 @@ function renderUpcoming() {
     <div class="show-meta">
       <div class="show-num upcoming">Native State ${NEXT.number}</div>
       <div class="show-artists-inline upcoming">${artistLine(NEXT.artists)}</div>
-      <div class="show-date-col">${NEXT.date}<br/><a href="https://share.google/aQyUKA4yUXSYlqQKg" target="_blank" style="color:var(--fg-dim);border-bottom:1px solid var(--border);padding-bottom:1px;font-size:10px;">849 S Broadway, LA</a></div>
+      <div class="show-date-col">${NEXT.date}<br/><a href="https://share.google/aQyUKA4yUXSYlqQKg" target="_blank" style="color:var(--fg);border-bottom:1px solid var(--border);padding-bottom:1px;font-size:10px;">849 S Broadway, LA</a></div>
       <div class="show-status"><span class="badge-upcoming">UPCOMING</span></div>
     </div>
     <div class="show-spread">
@@ -536,7 +536,7 @@ function renderArchiveShow(show) {
   if (show.poster) {
     const fullList = show.artists.map((a,i) => {
       const name = typeof a === 'string' ? a : a.name;
-      const work = typeof a === 'object' && a.work ? `<div style="font-size:11px;color:var(--fg-dim);font-style:italic;margin-top:1px;">${a.work}</div>` : '';
+      const work = typeof a === 'object' && a.work ? `<div style="font-size:11px;color:var(--fg);font-style:italic;margin-top:1px;">${a.work}</div>` : '';
       return `<div class="lineup-item">
         <span class="lineup-num">${pad(i+1)}</span>
         <div><span class="lineup-name">${name}</span>${work}</div>

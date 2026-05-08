@@ -46,13 +46,13 @@
     display: grid; grid-template-columns: 1fr auto 1fr;
     align-items: center; padding: 10px 32px;
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
+    font-size: 10px; letter-spacing: 0.14em; color: var(--fg);
   }
   .topbar .brand { color: var(--fg); }
   .topbar .center { text-align: center; }
   .topbar .right { text-align: right; display: flex; gap: 16px; justify-content: flex-end; align-items: center; }
   .topbar .right a, .topbar .right button {
-    color: var(--fg-dim); background: none; border: none; padding: 0;
+    color: var(--fg); background: none; border: none; padding: 0;
     font-family: inherit; font-size: 10px; letter-spacing: 0.14em; cursor: pointer;
   }
   .topbar .right a:hover, .topbar .right button:hover { color: var(--fg); }
@@ -66,7 +66,7 @@
     font-size: 10px; letter-spacing: 0.14em;
   }
   .tabs a {
-    padding: 14px 18px 12px; color: var(--fg-dim);
+    padding: 14px 18px 12px; color: var(--fg);
     border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
   .tabs a:first-child { padding-left: 0; }
@@ -86,10 +86,10 @@
   .view-title { font-size: 28px; font-weight: 400; letter-spacing: -0.02em; }
   .view-subtitle {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
+    font-size: 10px; letter-spacing: 0.14em; color: var(--fg);
   }
   .empty {
-    padding: 80px 0; text-align: center; color: var(--fg-dim);
+    padding: 80px 0; text-align: center; color: var(--fg);
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 11px; letter-spacing: 0.14em;
   }
@@ -98,7 +98,7 @@
   .field { margin-bottom: 20px; }
   .field label {
     display: block; font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim);
+    font-size: 10px; letter-spacing: 0.14em; color: var(--fg);
     margin-bottom: 6px;
   }
   .field input, .field textarea, .field select {
@@ -111,7 +111,7 @@
   .field textarea { resize: vertical; min-height: 80px; }
   .field .hint {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; color: var(--fg-dim); margin-top: 4px;
+    font-size: 10px; color: var(--fg); margin-top: 4px;
   }
   .btn {
     display: inline-block; padding: 10px 18px;
@@ -138,7 +138,7 @@
     font-size: 32px; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 8px;
   }
   .login-card .sub {
-    color: var(--fg-dim); font-size: 13px; margin-bottom: 32px; line-height: 1.6;
+    color: var(--fg); font-size: 13px; margin-bottom: 32px; line-height: 1.6;
   }
 
   /* ── Directory ── */
@@ -154,13 +154,13 @@
   .dir-card:hover { background: var(--border-light); }
   .dir-card .handle {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.14em; color: var(--fg-dim); margin-bottom: 6px;
+    font-size: 10px; letter-spacing: 0.14em; color: var(--fg); margin-bottom: 6px;
   }
   .dir-card .name { font-size: 16px; font-weight: 400; margin-bottom: 8px; }
-  .dir-card .bio { font-size: 12px; color: var(--fg-dim); line-height: 1.55; margin-bottom: 12px; }
+  .dir-card .bio { font-size: 12px; color: var(--fg); line-height: 1.55; margin-bottom: 12px; }
   .dir-card .meta {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 9px; letter-spacing: 0.12em; color: var(--fg-dimmer);
+    font-size: 9px; letter-spacing: 0.12em; color: var(--fg);
   }
   .presence-dot {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
@@ -180,7 +180,7 @@
   .avatar-lg { width: 64px; height: 64px; }
   .avatar-placeholder {
     display: inline-grid; place-items: center;
-    background: var(--border-light); color: var(--fg-dim);
+    background: var(--border-light); color: var(--fg);
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 13px; letter-spacing: 0.05em;
   }
@@ -206,7 +206,7 @@
   .cal-nav button:hover { border-color: var(--fg); }
   .cal-view-toggle { display: flex; gap: 0; border: 1px solid var(--border); }
   .cal-view-toggle button {
-    padding: 6px 14px; background: transparent; color: var(--fg-dim);
+    padding: 6px 14px; background: transparent; color: var(--fg);
     border: none;
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 10px; letter-spacing: 0.12em;
@@ -218,7 +218,7 @@
   .cal-day-headers {
     display: grid; grid-template-columns: repeat(7, 1fr);
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 9px; letter-spacing: 0.16em; color: var(--fg-dim);
+    font-size: 9px; letter-spacing: 0.16em; color: var(--fg);
     padding: 8px 0; border-bottom: 1px solid var(--border);
   }
   .cal-day-headers > div { text-align: left; padding-left: 8px; }
@@ -236,13 +236,13 @@
   .cal-day:hover { background: var(--border-light); }
   .cal-day-num {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 11px; color: var(--fg-dim); letter-spacing: 0.06em;
+    font-size: 11px; color: var(--fg); letter-spacing: 0.06em;
     margin-bottom: 4px;
   }
   .cal-day.today { background: var(--border-light); }
   .cal-day.today .cal-day-num { color: var(--fg); font-weight: 500; }
   .cal-day.other-month { background: var(--border-light); }
-  .cal-day.other-month .cal-day-num { color: var(--fg-faint); }
+  .cal-day.other-month .cal-day-num { color: var(--fg); }
   .cal-day.other-month .cal-event { opacity: 0.5; }
   .cal-event {
     display: block; margin-top: 3px; padding: 2px 6px;
@@ -275,24 +275,24 @@
     color: var(--fg); padding-top: 2px;
   }
   .event-date .day { font-size: 22px; font-weight: 400; display: block; line-height: 1; }
-  .event-date .month { letter-spacing: 0.14em; color: var(--fg-dim); margin-top: 4px; display: block; }
-  .event-date .time { color: var(--fg-dim); margin-top: 6px; display: block; font-size: 10px; }
+  .event-date .month { letter-spacing: 0.14em; color: var(--fg); margin-top: 4px; display: block; }
+  .event-date .time { color: var(--fg); margin-top: 6px; display: block; font-size: 10px; }
   .event-body .title { font-size: 16px; font-weight: 400; margin-bottom: 6px; }
   .event-body .meta {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.12em; color: var(--fg-dim); margin-bottom: 8px;
+    font-size: 10px; letter-spacing: 0.12em; color: var(--fg); margin-bottom: 8px;
   }
   .event-body .meta .badge {
     display: inline-block; padding: 1px 6px; border: 1px solid var(--fg-dimmer);
     margin-right: 8px; font-size: 9px;
   }
   .event-body .meta .badge.ns { border-color: var(--fg); color: var(--fg); }
-  .event-body .desc { font-size: 13px; color: var(--fg-dim); line-height: 1.6; }
+  .event-body .desc { font-size: 13px; color: var(--fg); line-height: 1.6; }
   .rsvp { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
-  .rsvp .counts { font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; color: var(--fg-dim); margin-bottom: 4px; }
+  .rsvp .counts { font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; color: var(--fg); margin-bottom: 4px; }
   .rsvp .buttons { display: flex; gap: 4px; }
   .rsvp button {
-    padding: 5px 10px; background: transparent; color: var(--fg-dim);
+    padding: 5px 10px; background: transparent; color: var(--fg);
     border: 1px solid var(--border);
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 9px; letter-spacing: 0.1em;
@@ -307,13 +307,13 @@
   .chat-sidebar { border-right: 1px solid var(--border); padding-right: 16px; }
   .chat-sidebar-label {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 9px; letter-spacing: 0.16em; color: var(--fg-dim); margin-bottom: 14px;
+    font-size: 9px; letter-spacing: 0.16em; color: var(--fg); margin-bottom: 14px;
   }
   .chat-channel-list { display: flex; flex-direction: column; }
   .chat-channel-item {
     display: block; padding: 7px 0;
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 12px; color: var(--fg-dim); cursor: pointer;
+    font-size: 12px; color: var(--fg); cursor: pointer;
     border-bottom: 1px solid var(--border-light);
     text-decoration: none;
   }
@@ -323,7 +323,7 @@
   .chat-main { display: flex; flex-direction: column; min-width: 0; }
   .chat-channel-header { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
   .chat-channel-name { font-size: 16px; font-weight: 400; }
-  .chat-channel-desc { font-size: 12px; color: var(--fg-dim); margin-top: 3px; }
+  .chat-channel-desc { font-size: 12px; color: var(--fg); margin-top: 3px; }
   .chat-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   @media (max-width: 720px) {
     .chat-layout { grid-template-columns: 1fr; gap: 16px; height: auto; }
@@ -349,7 +349,7 @@
   .msg-row .body { font-size: 14px; color: var(--fg); line-height: 1.5; word-wrap: break-word; }
   .msg-row .ts {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 9px; color: var(--fg-dimmer); text-align: right;
+    font-size: 9px; color: var(--fg); text-align: right;
   }
   .chat-input {
     display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border);
@@ -366,7 +366,7 @@
   .tag-pill {
     display: inline-block; padding: 3px 10px; border: 1px solid var(--border);
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 10px; letter-spacing: 0.1em; color: var(--fg-dim);
+    font-size: 10px; letter-spacing: 0.1em; color: var(--fg);
   }
 
   /* ── Admin ── */
@@ -385,12 +385,12 @@
   .invite-row .email { font-size: 13px; font-weight: 400; word-break: break-all; }
   .invite-row .meta {
     font-family: 'ABCMonumentGroteskMono', monospace;
-    font-size: 9px; letter-spacing: 0.1em; color: var(--fg-dim); margin-top: 3px;
+    font-size: 9px; letter-spacing: 0.1em; color: var(--fg); margin-top: 3px;
   }
   .invite-row .meta .used { color: #4ade80; }
-  .invite-row .meta .unused { color: var(--fg-dim); }
+  .invite-row .meta .unused { color: var(--fg); }
   .invite-row button {
-    background: none; border: 1px solid var(--border); color: var(--fg-dim);
+    background: none; border: 1px solid var(--border); color: var(--fg);
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 9px; letter-spacing: 0.1em; padding: 4px 8px;
   }
@@ -413,7 +413,7 @@
   }
   .modal-head .title { font-size: 18px; font-weight: 400; }
   .modal-head .close {
-    background: none; border: none; color: var(--fg-dim);
+    background: none; border: none; color: var(--fg);
     font-family: 'ABCMonumentGroteskMono', monospace;
     font-size: 11px; letter-spacing: 0.12em;
   }
@@ -713,7 +713,7 @@ function renderLogin() {
     <div class="login-wrap">
       <div class="login-card">
         <h1>Members</h1>
-        <div class="sub">welcome to native state world<br/><br/><span style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg-dimmer);">→ CHECK SPAM IF THE LINK DOESN'T ARRIVE</span></div>
+        <div class="sub">welcome to native state world<br/><br/><span style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg);">→ CHECK SPAM IF THE LINK DOESN'T ARRIVE</span></div>
         <button class="btn ghost" id="google-signin-btn" style="width:100%; padding: 12px 18px; display: flex; align-items: center; justify-content: center; gap: 10px;">
           <svg width="14" height="14" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
@@ -723,7 +723,7 @@ function renderLogin() {
           </svg>
           CONTINUE WITH GOOGLE
         </button>
-        <div style="text-align:center; margin: 20px 0; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; color: var(--fg-dimmer); letter-spacing: 0.16em;">— OR —</div>
+        <div style="text-align:center; margin: 20px 0; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; color: var(--fg); letter-spacing: 0.16em;">— OR —</div>
         <form id="login-form">
           <div class="field">
             <label>EMAIL · MAGIC LINK</label>
@@ -732,8 +732,8 @@ function renderLogin() {
           <button class="btn" type="submit" style="width:100%;">SEND SIGN-IN LINK</button>
         </form>
         <div id="login-msg"></div>
-        <div style="margin-top: 32px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg-dimmer);">
-          ← <a href="../" style="color: var(--fg-dim); border-bottom: 1px solid var(--border);">BACK TO PUBLIC SITE</a>
+        <div style="margin-top: 32px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg);">
+          ← <a href="../" style="color: var(--fg); border-bottom: 1px solid var(--border);">BACK TO PUBLIC SITE</a>
         </div>
       </div>
     </div>
@@ -817,8 +817,8 @@ function renderDirectoryList() {
           <div class="meta">${m.joined_show ? 'JOINED ' + escape(m.joined_show).toUpperCase() : ''}</div>
           ${tags ? `<div class="tag-list" style="margin-top: 10px;">${tags}</div>` : ''}
           ${(m.ig || m.website) ? `<div style="margin-top: 12px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px;">
-            ${m.ig ? `<a href="https://instagram.com/${escape(m.ig.replace('@',''))}" target="_blank" style="color: var(--fg-dim); margin-right: 12px;">IG ↗</a>` : ''}
-            ${m.website ? `<a href="${escape(m.website)}" target="_blank" style="color: var(--fg-dim);">WEB ↗</a>` : ''}
+            ${m.ig ? `<a href="https://instagram.com/${escape(m.ig.replace('@',''))}" target="_blank" style="color: var(--fg); margin-right: 12px;">IG ↗</a>` : ''}
+            ${m.website ? `<a href="${escape(m.website)}" target="_blank" style="color: var(--fg);">WEB ↗</a>` : ''}
           </div>` : ''}
         </div>`;
     }).join('');
@@ -998,7 +998,7 @@ function renderEventList() {
       ? `${fmtTime(d)} – ${fmtTime(dEnd)}`
       : fmtTime(d);
     const rangeLine = (dEnd && !sameDay(d, dEnd))
-      ? `<span style="display:block;font-size:9px;color:var(--fg-dim);margin-top:2px;">→ ${escape(dEnd.toLocaleDateString([], { month:'short', day:'numeric' }).toUpperCase())}</span>`
+      ? `<span style="display:block;font-size:9px;color:var(--fg);margin-top:2px;">→ ${escape(dEnd.toLocaleDateString([], { month:'short', day:'numeric' }).toUpperCase())}</span>`
       : '';
     const host = state.members.find(m => m.uid === ev.host_uid);
     const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
@@ -1164,12 +1164,12 @@ function openEventDetail(eventId) {
           <span class="title">${escape(ev.title)}</span>
           <button class="close" id="modal-close">CLOSE ×</button>
         </div>
-        <div style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--fg-dim); margin-bottom: 18px;">
+        <div style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--fg); margin-bottom: 18px;">
           <span class="badge ${ev.type}" style="display:inline-block; padding:1px 6px; border:1px solid var(--fg-dimmer); margin-right:8px; font-size:9px;">${ev.type === 'ns' ? 'NATIVE STATE' : 'MEMBER'}</span>
           ${escape(hostHandle)}
         </div>
         <div style="margin-bottom: 6px; font-size: 14px;">${escape(dateStr)}</div>
-        <div style="margin-bottom: 14px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: var(--fg-dim);">${escape(timeStr)}</div>
+        <div style="margin-bottom: 14px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 12px; color: var(--fg);">${escape(timeStr)}</div>
         ${ev.location ? `<div style="margin-bottom: 14px; font-size: 13px;">📍 ${escape(ev.location)}</div>` : ''}
         ${ev.description ? `<div style="font-size: 14px; color: var(--fg); line-height: 1.6; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 16px 0;">${escape(ev.description)}</div>` : ''}
         ${(isHost || isAdmin) ? `
@@ -1301,7 +1301,7 @@ function renderChannelList() {
     html = '<div class="empty" style="font-size:9px;">NO CHANNELS</div>';
   }
   if (isAdmin) {
-    html += `<a class="chat-channel-item" id="add-channel-link" style="color:var(--fg-dim); margin-top: 4px;">+ NEW CHANNEL</a>`;
+    html += `<a class="chat-channel-item" id="add-channel-link" style="color:var(--fg); margin-top: 4px;">+ NEW CHANNEL</a>`;
   }
   list.innerHTML = html;
   list.querySelectorAll('[data-channel]').forEach(a => {
@@ -1425,7 +1425,7 @@ function renderProfile(forceComplete) {
               <input id="p-avatar-file" type="file" accept="image/*" style="display:none;" />
               <button class="btn ghost small" type="button" id="p-avatar-btn">UPLOAD</button>
               ${p.avatar ? '<button class="btn ghost small" type="button" id="p-avatar-clear">REMOVE</button>' : ''}
-              <span id="p-avatar-msg" class="mono" style="font-size:10px; color:var(--fg-dim); letter-spacing:0.12em;"></span>
+              <span id="p-avatar-msg" class="mono" style="font-size:10px; color:var(--fg); letter-spacing:0.12em;"></span>
             </div>
             <div class="hint">JPG/PNG, &lt; 2MB.</div>
           </div>
@@ -1481,7 +1481,7 @@ function renderProfile(forceComplete) {
     try {
       await updateDoc(doc(fs, 'users', state.user.uid), updates);
       state.profile = { ...state.profile, ...updates };
-      $('p-msg').innerHTML = '<span class="mono" style="font-size: 10px; color: var(--fg-dim); letter-spacing: 0.12em;">SAVED</span>';
+      $('p-msg').innerHTML = '<span class="mono" style="font-size: 10px; color: var(--fg); letter-spacing: 0.12em;">SAVED</span>';
       renderTopbar();
       if (forceComplete) location.hash = 'directory';
     } catch (err) {
@@ -1652,7 +1652,7 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
         invited_at: serverTimestamp(),
         used: false,
       }, { merge: true });
-      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">ADDED</span>';
+      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg);letter-spacing:0.12em;">ADDED</span>';
       $('add-invite-form').reset();
       setTimeout(() => msg.innerHTML = '', 2000);
     } catch (err) {
@@ -1709,7 +1709,7 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
         created_at: serverTimestamp(),
       });
       $('add-channel-form').reset();
-      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">CREATED</span>';
+      msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg);letter-spacing:0.12em;">CREATED</span>';
       setTimeout(() => msg.innerHTML = '', 2000);
     } catch (err) {
       msg.innerHTML = `<span class="msg error" style="display:inline-block;padding:4px 8px;">${escape(err.message)}</span>`;
@@ -1723,7 +1723,7 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
     if (!text) return;
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     let ok = 0, fail = 0;
-    msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">IMPORTING…</span>';
+    msg.innerHTML = '<span class="mono" style="font-size:10px;color:var(--fg);letter-spacing:0.12em;">IMPORTING…</span>';
     const batch = writeBatch(fs);
     for (const line of lines) {
       const [emailRaw, nameRaw, showRaw, roleRaw] = line.split(',').map(s => (s || '').trim());
@@ -1740,7 +1740,7 @@ bob@example.com,Bob Jones,Native State 2.0,artist"></textarea>
     }
     try {
       await batch.commit();
-      msg.innerHTML = `<span class="mono" style="font-size:10px;color:var(--fg-dim);letter-spacing:0.12em;">IMPORTED ${ok}${fail ? ' · SKIPPED ' + fail : ''}</span>`;
+      msg.innerHTML = `<span class="mono" style="font-size:10px;color:var(--fg);letter-spacing:0.12em;">IMPORTED ${ok}${fail ? ' · SKIPPED ' + fail : ''}</span>`;
       $('bulk-csv').value = '';
       setTimeout(() => msg.innerHTML = '', 4000);
     } catch (err) {
