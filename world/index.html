@@ -1230,7 +1230,18 @@ function renderChat() {
 
   // Channels list
   const chQ = query(collection(fs, 'channels'), orderBy('position'));
-  const unsubCh = onSnapshot(chQ, (snap) => {
+  const unsubCh = onSnapshot(chQ, async (snap) => {
+    // Self-heal: if no channels exist and user is admin, seed #general.
+    // Snapshot will refire with the new doc once setDoc resolves.
+    if (snap.docs.length === 0 && state.profile?.role === 'admin') {
+      try {
+        await setDoc(doc(fs, 'channels', 'general'), {
+          name: 'general', description: '', position: 0,
+          created_at: Date.now(), archived: false,
+        });
+      } catch (e) { console.error('seed general failed', e); }
+      return;
+    }
     state.channels = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.archived);
     // If saved channel doesn't exist anymore, fall back to first
     if (!state.channels.find(c => c.id === state.chat.channelId)) {
