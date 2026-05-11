@@ -34,7 +34,7 @@ catch (e) {
 
 admin.initializeApp({
   credential: admin.credential.cert(require(KEY_PATH)),
-  projectId: 'ras-common',
+  projectId: 'nativestate-ac877',
 });
 const db = admin.firestore();
 

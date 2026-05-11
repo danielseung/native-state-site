@@ -1,6 +1,6 @@
 # Native State Members — Setup
 
-The `/world` app is a static site. All backend is Firebase (project `ras-common`). Setup has three parts:
+The `/world` app is a static site. All backend is Firebase (project `nativestate-ac877`). Setup has three parts:
 
 1. **Enable email-link sign-in** in the Firebase console.
 2. **Deploy security rules** (Firestore + RTDB).
@@ -10,17 +10,18 @@ The `/world` app is a static site. All backend is Firebase (project `ras-common`
 
 ## 1. Enable email-link sign-in
 
-1. Open https://console.firebase.google.com → project **ras-common** → **Authentication** → **Sign-in method**.
+1. Open https://console.firebase.google.com → project **nativestate-ac877** → **Authentication** → **Sign-in method**.
 2. Enable the **Email/Password** provider, **and** check **Email link (passwordless sign-in)**.
-3. Under **Authorized domains**, add: `nativestate.info` and `localhost`. (`ras-common.firebaseapp.com` is added by default.)
+3. Enable **Google** sign-in if you want the "Continue with Google" button to work.
+4. Under **Authorized domains**, add: `nativestate.info` and `localhost`. (`nativestate-ac877.firebaseapp.com` is added by default.)
 
 ## 2. Deploy security rules
 
 From the repo root:
 
 ```bash
-firebase use ras-common
-firebase deploy --only firestore:rules,database
+firebase use nativestate-ac877
+firebase deploy --only firestore:rules,database,storage
 ```
 
 Verify on the Firebase console that `firestore.rules` and `database.rules.json` show the new content.
@@ -28,7 +29,7 @@ Verify on the Firebase console that `firestore.rules` and `database.rules.json` 
 If `firebase use` complains about no project alias, run:
 ```bash
 firebase login   # if not already
-firebase use --add   # pick ras-common, alias it as 'default'
+firebase use --add   # pick nativestate-ac877, alias it as 'default'
 ```
 
 ## 3. Bootstrap your admin invite
@@ -91,11 +92,12 @@ For the magic-link flow to work locally, `localhost` must be on the Firebase Aut
 | Surface | Storage | Purpose |
 |---|---|---|
 | `/world/` HTML | GitHub Pages | App shell |
-| Firebase Auth | ras-common | Magic-link email sign-in |
-| Firestore `users/{uid}` | ras-common | Profiles |
-| Firestore `events/{id}` + `events/{id}/rsvps/{uid}` | ras-common | Calendar |
-| Firestore `invites/{email}` | ras-common | Curation gate |
-| RTDB `m/channels/general/messages` | ras-common | #general chat |
-| RTDB `m/presence/{uid}` | ras-common | Live presence dot |
+| Firebase Auth | nativestate-ac877 | Magic-link + Google sign-in |
+| Firestore `users/{uid}` | nativestate-ac877 | Signed-in profiles |
+| Firestore `events/{id}` + `events/{id}/rsvps/{uid}` | nativestate-ac877 | Public calendar, signed-in posting |
+| Firestore `channels/{id}` | nativestate-ac877 | Public chat channel list, admin-managed |
+| Firestore `invites/{email}` | nativestate-ac877 | Curation gate |
+| RTDB `m/channels/{id}/messages` | nativestate-ac877 | Public read-only chat for guests, signed-in posting |
+| RTDB `m/presence/{uid}` | nativestate-ac877 | Signed-in live presence dot |
 
 `/gr1` and `/tp` continue to use the **public** RTDB paths `gr1/state` and `tp/state` — completely separate from `/world/*`. (RTDB still uses the `m/` prefix for members data — internal key, not user-visible.)

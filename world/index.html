@@ -72,7 +72,9 @@
   .tabs a:first-child { padding-left: 0; }
   .tabs a:hover { color: var(--fg); }
   .tabs a.active { color: var(--fg); border-bottom-color: var(--fg); }
+  .tabs .signed-in-only { display: none; }
   .tabs .admin-only { display: none; }
+  body.is-signed-in .tabs .signed-in-only { display: inline-block; }
   body.is-admin .tabs .admin-only { display: inline-block; }
 
   /* ── Layout ── */
@@ -442,12 +444,12 @@
   <span class="right" id="topbar-right"></span>
 </div>
 
-<!-- Tabs visible only when signed in -->
-<div class="tabs" id="tabs" style="display:none;">
-  <a href="#directory" data-tab="directory">DIRECTORY</a>
+<!-- Calendar and chat are public; directory/profile/admin require sign-in. -->
+<div class="tabs" id="tabs">
+  <a href="#directory" data-tab="directory" class="signed-in-only">DIRECTORY</a>
   <a href="#calendar" data-tab="calendar">CALENDAR</a>
   <a href="#chat" data-tab="chat">CHAT</a>
-  <a href="#profile" data-tab="profile">PROFILE</a>
+  <a href="#profile" data-tab="profile" class="signed-in-only">PROFILE</a>
   <a href="#admin" data-tab="admin" class="admin-only">ADMIN</a>
 </div>
 
@@ -532,6 +534,14 @@ const tsRel = (ts) => {
   if (diff < 604800) return Math.floor(diff / 86400) + 'd';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
+const isMember = () => !!(state.user && state.profile);
+const requireSignIn = (message = 'Sign in to post and use member tools.') => {
+  location.hash = 'login';
+  setTimeout(() => {
+    const msg = $('login-msg');
+    if (msg) msg.innerHTML = `<div class="msg">${escape(message)}</div>`;
+  }, 0);
+};
 
 // ── App state ───────────────────────────────────────────────────────────────
 const state = {
@@ -561,18 +571,19 @@ const cleanupSubs = () => { state.unsubs.forEach(u => { try { u(); } catch(e){} 
 // ── Topbar render ───────────────────────────────────────────────────────────
 function renderTopbar() {
   const right = $('topbar-right');
+  const status = $('status-center');
+  document.body.classList.toggle('is-signed-in', isMember());
   document.body.classList.toggle('is-admin', state.profile?.role === 'admin');
+  if (status) status.textContent = isMember() ? 'SIGNED IN' : 'GUEST VIEW';
   if (state.user && state.profile) {
     right.innerHTML = `
       ${avatarHtml(state.profile, 'sm')}
-      <span class="me">@${escape(state.profile.handle)}</span>
+      <span class="me">@${escape(state.profile.handle || state.profile.email || 'member')}</span>
       <button id="signout-btn">SIGN OUT</button>
     `;
     $('signout-btn').onclick = doSignOut;
-    $('tabs').style.display = '';
   } else {
-    right.innerHTML = '';
-    $('tabs').style.display = 'none';
+    right.innerHTML = '<a href="#login">SIGN IN</a>';
   }
 }
 
@@ -682,9 +693,23 @@ function startPresence() {
 let currentTab = null;
 
 function route() {
-  const hash = location.hash.replace('#', '') || (state.user ? 'directory' : 'login');
-  if (!state.user || !state.profile) {
-    renderLogin();
+  const hash = location.hash.replace('#', '') || (isMember() ? 'directory' : 'calendar');
+  if (!isMember()) {
+    if (hash === 'login') {
+      currentTab = 'login';
+      setActiveTab('login');
+      renderLogin();
+    } else if (hash === 'chat') {
+      currentTab = 'chat';
+      setActiveTab('chat');
+      renderChat();
+    } else if (hash === 'calendar') {
+      currentTab = 'calendar';
+      setActiveTab('calendar');
+      renderCalendar();
+    } else {
+      location.hash = 'calendar';
+    }
     return;
   }
   if (!state.profile.handle) {
@@ -849,13 +874,15 @@ function renderCalendar() {
             <button data-view="grid">GRID</button>
             <button data-view="list">LIST</button>
           </div>
-          <button class="btn" id="new-event-btn">+ POST EVENT</button>
+          <button class="btn" id="new-event-btn">${isMember() ? '+ POST EVENT' : 'SIGN IN TO POST'}</button>
         </div>
         <div id="cal-body"><div class="empty">LOADING…</div></div>
       </div>
     </div>
   `;
-  $('new-event-btn').onclick = () => openEventModal();
+  $('new-event-btn').onclick = () => isMember()
+    ? openEventModal()
+    : requireSignIn('Sign in to post an event.');
   $('cal-prev').onclick = () => { stepMonth(-1); };
   $('cal-next').onclick = () => { stepMonth(1); };
   $('cal-today').onclick = () => {
@@ -879,6 +906,10 @@ function renderCalendar() {
   const unsub = onSnapshot(q, (snap) => {
     state.events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderCalBody();
+  }, (err) => {
+    console.error(err);
+    const body = $('cal-body');
+    if (body) body.innerHTML = '<div class="empty">CALENDAR UNAVAILABLE</div>';
   });
   state.unsubs.push(unsub);
 }
@@ -960,6 +991,10 @@ function renderCalGrid() {
   body.querySelectorAll('.cal-day').forEach(d => {
     d.onclick = (e) => {
       if (e.target.closest('.cal-event')) return;
+      if (!isMember()) {
+        requireSignIn('Sign in to post an event.');
+        return;
+      }
       const [y, m, day] = d.dataset.date.split('-').map(Number);
       const dt = new Date(y, m - 1, day, 19, 0); // default to 7pm
       openEventModal({ start_ts: dt });
@@ -968,6 +1003,7 @@ function renderCalGrid() {
 }
 
 function subscribeRsvps(eventId) {
+  if (!state.user) return;
   if (state.rsvps[eventId]?.unsub) return;
   const unsub = onSnapshot(collection(fs, 'events', eventId, 'rsvps'), (snap) => {
     const m = {};
@@ -1001,9 +1037,7 @@ function renderEventList() {
       ? `<span style="display:block;font-size:9px;color:var(--fg);margin-top:2px;">→ ${escape(dEnd.toLocaleDateString([], { month:'short', day:'numeric' }).toUpperCase())}</span>`
       : '';
     const host = state.members.find(m => m.uid === ev.host_uid);
-    const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
-    const isHost = ev.host_uid === state.user.uid;
-    const isAdmin = state.profile.role === 'admin';
+    const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : 'MEMBER');
     return `
       <div class="event-row" data-event-id="${ev.id}" style="cursor:pointer;">
         <div class="event-date">
@@ -1028,6 +1062,10 @@ function renderEventList() {
 }
 
 function openEventModal(prefill = {}) {
+  if (!isMember()) {
+    requireSignIn('Sign in to post an event.');
+    return;
+  }
   const isAdmin = state.profile.role === 'admin';
   const editing = prefill.event || null;
   const pad = (n) => String(n).padStart(2, '0');
@@ -1154,9 +1192,9 @@ function openEventDetail(eventId) {
     timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
   const host = state.members.find(m => m.uid === ev.host_uid);
-  const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : '—');
-  const isHost = ev.host_uid === state.user.uid;
-  const isAdmin = state.profile.role === 'admin';
+  const hostHandle = host ? '@' + host.handle : (ev.type === 'ns' ? 'NATIVE STATE' : 'MEMBER');
+  const isHost = state.user && ev.host_uid === state.user.uid;
+  const isAdmin = state.profile?.role === 'admin';
   const html = `
     <div class="modal-bg" id="modal-bg">
       <div class="modal" onclick="event.stopPropagation()">
@@ -1217,10 +1255,16 @@ function renderChat() {
             <div class="chat-channel-header" id="chat-channel-header"></div>
             <div class="chat-wrap">
               <div class="chat-msgs" id="chat-msgs"><div class="empty">LOADING…</div></div>
-              <form class="chat-input" id="chat-form">
-                <input id="chat-input" type="text" placeholder="Message…" autocomplete="off" maxlength="1500" />
-                <button class="btn" type="submit">SEND</button>
-              </form>
+              ${isMember() ? `
+                <form class="chat-input" id="chat-form">
+                  <input id="chat-input" type="text" placeholder="Message…" autocomplete="off" maxlength="1500" />
+                  <button class="btn" type="submit">SEND</button>
+                </form>
+              ` : `
+                <div class="chat-input">
+                  <button class="btn" type="button" id="chat-signin-btn">SIGN IN TO POST</button>
+                </div>
+              `}
             </div>
           </div>
         </div>
@@ -1249,11 +1293,17 @@ function renderChat() {
     }
     renderChannelList();
     renderChannelHeader();
+  }, (err) => {
+    console.error(err);
+    state.channels = [];
+    renderChannelList();
+    renderChannelHeader();
+    if ($('chat-msgs')) $('chat-msgs').innerHTML = '<div class="empty">CHAT UNAVAILABLE</div>';
   });
   state.unsubs.push(unsubCh);
 
   // Members for handle lookup
-  if (state.members.length === 0) {
+  if (isMember() && state.members.length === 0) {
     const q = query(collection(fs, 'users'), orderBy('name'));
     const unsubM = onSnapshot(q, (snap) => {
       state.members = snap.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.handle);
@@ -1264,20 +1314,25 @@ function renderChat() {
 
   subscribeChannel(state.chat.channelId);
 
-  $('chat-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const input = $('chat-input');
-    const body = input.value.trim();
-    if (!body) return;
-    try {
-      await push(dbRef(rtdb, `m/channels/${state.chat.channelId}/messages`), {
-        from_uid: state.user.uid, body, ts: rtdbServerTimestamp(),
-      });
-      input.value = '';
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  if ($('chat-signin-btn')) {
+    $('chat-signin-btn').onclick = () => requireSignIn('Sign in to post in chat.');
+  }
+  if ($('chat-form')) {
+    $('chat-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = $('chat-input');
+      const body = input.value.trim();
+      if (!body || !state.user) return;
+      try {
+        await push(dbRef(rtdb, `m/channels/${state.chat.channelId}/messages`), {
+          from_uid: state.user.uid, body, ts: rtdbServerTimestamp(),
+        });
+        input.value = '';
+      } catch (err) {
+        console.error(err);
+      }
+    };
+  }
 }
 
 function subscribeChannel(channelId) {
@@ -1296,6 +1351,9 @@ function subscribeChannel(channelId) {
     const msgs = Object.entries(v).map(([id, m]) => ({ id, ...m })).sort((a,b) => a.ts - b.ts);
     state._currentMsgs = msgs;
     renderChatMsgs(msgs);
+  }, (err) => {
+    console.error(err);
+    if ($('chat-msgs')) $('chat-msgs').innerHTML = '<div class="empty">CHAT UNAVAILABLE</div>';
   });
   state._chatUnsub = unsub;
   state.unsubs.push(unsub);
@@ -1392,12 +1450,12 @@ function renderChatMsgs(msgs) {
   const c = $('chat-msgs');
   if (!c) return;
   if (msgs.length === 0) {
-    c.innerHTML = '<div class="empty">NO MESSAGES YET · SAY HI</div>';
+    c.innerHTML = `<div class="empty">${isMember() ? 'NO MESSAGES YET · SAY HI' : 'NO MESSAGES YET'}</div>`;
     return;
   }
   const handle = (uid) => {
     const m = state.members.find(x => x.uid === uid);
-    return m ? '@' + m.handle : uid.slice(0, 6);
+    return m ? '@' + m.handle : String(uid || 'guest').slice(0, 6);
   };
   const member = (uid) => state.members.find(x => x.uid === uid);
   c.innerHTML = msgs.map(m => {
@@ -1802,13 +1860,22 @@ async function boot() {
   // If this is an email-link sign-in completion, finish it before checking auth state
   await completeSignInIfPending();
 
+  // Render the public guest surface immediately. Firebase Auth can take a beat
+  // to resolve, and guests should never see an empty shell while it does.
+  renderTopbar();
+  route();
+
   onAuthStateChanged(auth, async (user) => {
     cleanupSubs();
     state.user = user;
     if (!user) {
       state.profile = null;
       renderTopbar();
-      renderLogin();
+      if (!location.hash || location.hash === '#directory' || location.hash === '#profile' || location.hash === '#admin') {
+        location.hash = 'calendar';
+      } else {
+        route();
+      }
       return;
     }
     try {

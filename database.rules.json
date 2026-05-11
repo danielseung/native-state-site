@@ -29,7 +29,7 @@
       "channels": {
         "$channel": {
           "messages": {
-            ".read": "auth != null",
+            ".read": true,
             ".indexOn": ["ts"],
             "$msg": {
               ".write": "auth != null && (!data.exists() || data.child('from_uid').val() == auth.uid)",
