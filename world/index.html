@@ -458,7 +458,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
 import {
-  getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+  getAuth, isSignInWithEmailLink, signInWithEmailLink,
   signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
 import {
@@ -596,17 +596,6 @@ function setActiveTab(name) {
 // ── Auth flow ───────────────────────────────────────────────────────────────
 const STORE_EMAIL_KEY = 'ns_signin_email';
 
-async function sendMagicLink(email) {
-  // Firebase appends ?apiKey=...&oobCode=...&mode=signIn to this URL.
-  // No hash fragment — fragments interact badly with Firebase's param injection.
-  const actionCodeSettings = {
-    url: location.origin + location.pathname,
-    handleCodeInApp: true,
-  };
-  await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-  localStorage.setItem(STORE_EMAIL_KEY, email);
-}
-
 async function completeSignInIfPending() {
   if (!isSignInWithEmailLink(auth, location.href)) return false;
   let email = localStorage.getItem(STORE_EMAIL_KEY);
@@ -645,13 +634,11 @@ async function ensureProfile() {
   const uid = state.user.uid;
   let profile = await loadProfile(uid);
   if (!profile) {
-    // First time — check invite, create blank profile (forces user to fill in profile view)
+    // First time — create a blank profile. Invites are now optional metadata
+    // for prefilled name/show/role, not a gate.
     const email = (state.user.email || '').toLowerCase();
     const inviteSnap = await getDoc(doc(fs, 'invites', email));
-    if (!inviteSnap.exists()) {
-      throw new Error('Your email is not on the invite list. Contact Native State to be added.');
-    }
-    const invite = inviteSnap.data();
+    const invite = inviteSnap.exists() ? inviteSnap.data() : {};
     profile = {
       handle: '',
       name: invite.name || state.user.displayName || '',
@@ -666,8 +653,9 @@ async function ensureProfile() {
       created_at: serverTimestamp(),
     };
     await setDoc(doc(fs, 'users', uid), profile);
-    // mark invite consumed
-    await updateDoc(doc(fs, 'invites', email), { used: true, used_by_uid: uid, used_at: serverTimestamp() });
+    if (inviteSnap.exists()) {
+      await updateDoc(doc(fs, 'invites', email), { used: true, used_by_uid: uid, used_at: serverTimestamp() });
+    }
   }
   state.profile = profile;
 }
@@ -738,7 +726,7 @@ function renderLogin() {
     <div class="login-wrap">
       <div class="login-card">
         <h1>Members</h1>
-        <div class="sub">welcome to native state world<br/><br/><span style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg);">→ CHECK SPAM IF THE LINK DOESN'T ARRIVE</span></div>
+        <div class="sub">welcome to native state world<br/><br/><span style="font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg);">USE ANY GOOGLE ACCOUNT TO JOIN</span></div>
         <button class="btn ghost" id="google-signin-btn" style="width:100%; padding: 12px 18px; display: flex; align-items: center; justify-content: center; gap: 10px;">
           <svg width="14" height="14" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
@@ -748,14 +736,6 @@ function renderLogin() {
           </svg>
           CONTINUE WITH GOOGLE
         </button>
-        <div style="text-align:center; margin: 20px 0; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; color: var(--fg); letter-spacing: 0.16em;">— OR —</div>
-        <form id="login-form">
-          <div class="field">
-            <label>EMAIL · MAGIC LINK</label>
-            <input id="login-email" type="email" placeholder="you@example.com" required autocomplete="email" />
-          </div>
-          <button class="btn" type="submit" style="width:100%;">SEND SIGN-IN LINK</button>
-        </form>
         <div id="login-msg"></div>
         <div style="margin-top: 32px; font-family: 'ABCMonumentGroteskMono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--fg);">
           ← <a href="../" style="color: var(--fg); border-bottom: 1px solid var(--border);">BACK TO PUBLIC SITE</a>
@@ -763,28 +743,13 @@ function renderLogin() {
       </div>
     </div>
   `;
-  $('login-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const email = $('login-email').value.trim().toLowerCase();
-    const msg = $('login-msg');
-    msg.innerHTML = '';
-    if (!email.includes('@')) { msg.innerHTML = '<div class="msg error">Enter a valid email.</div>'; return; }
-    try {
-      msg.innerHTML = '<div class="msg">Sending…</div>';
-      await sendMagicLink(email);
-      msg.innerHTML = '<div class="msg ok">Check your email for a sign-in link. Check spam if it doesn\'t appear in 30 seconds.</div>';
-    } catch (err) {
-      console.error(err);
-      msg.innerHTML = '<div class="msg error">' + escape(err.message || 'Send failed.') + '</div>';
-    }
-  };
   $('google-signin-btn').onclick = async () => {
     const msg = $('login-msg');
     msg.innerHTML = '';
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      // onAuthStateChanged will fire and route to ensureProfile (which gates by invite).
+      // onAuthStateChanged will create the member profile if needed.
     } catch (err) {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
       console.error(err);

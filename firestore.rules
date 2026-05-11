@@ -17,6 +17,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email != null &&
         exists(/databases/$(database)/documents/invites/$(request.auth.token.email.lower()));
     }
+    function inviteRole() {
+      return hasInvite()
+        ? get(/databases/$(database)/documents/invites/$(request.auth.token.email.lower())).data.role
+        : '';
+    }
 
     // ── Invites: keyed by lowercased email ──────────────────────────────────
     match /invites/{email} {
@@ -37,8 +42,11 @@ service cloud.firestore {
     // ── Users ────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isSignedIn();
-      allow create: if isOwner(uid) && hasInvite()
-        && request.resource.data.email == request.auth.token.email.lower();
+      allow create: if isOwner(uid)
+        && request.auth.token.email != null
+        && request.resource.data.email == request.auth.token.email.lower()
+        && (request.resource.data.role == 'artist'
+            || (hasInvite() && request.resource.data.role == inviteRole()));
       // Owner may update own doc but cannot escalate role.
       allow update: if isOwner(uid)
         && (!('role' in request.resource.data.diff(resource.data).affectedKeys())
