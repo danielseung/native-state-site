@@ -4,16 +4,18 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Native State · Members</title>
-<meta http-equiv="refresh" content="0; url=/world/" />
+<meta http-equiv="refresh" content="0; url=/world/?v=open-login" />
 <script>
   // /m moved to /world (renamed 2026-05-08). Forward, preserving query/hash
   // so stale Firebase magic links keep working.
-  location.replace('/world/' + location.search + location.hash);
+  const search = new URLSearchParams(location.search);
+  search.set('v', 'open-login');
+  location.replace('/world/?' + search.toString() + location.hash);
 </script>
 </head>
 <body>
 <p style="font-family: system-ui, sans-serif; padding: 32px;">
-  This page moved to <a href="/world/">/world/</a>.
+  This page moved to <a href="/world/?v=open-login">/world/</a>.
 </p>
 </body>
 </html>
