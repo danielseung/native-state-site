@@ -12,7 +12,7 @@
 - [x] Update Firestore rules so any signed-in user can create their own profile.
 - [x] Stop presenting email magic links as the primary login path.
 - [x] Update setup docs to match open login.
-- [ ] Push site and verify live login surface.
+- [x] Push site and verify live login surface.
 
 ## Review
 - Local branch is synced to `origin/master`.
@@ -23,3 +23,5 @@
 - Firebase RTDB, Storage, and Firestore rules deployed to `nativestate-ac877`.
 - Open-login Firestore rules deployed to `nativestate-ac877`.
 - Google sign-in provider is enabled in Firebase Auth.
+- Commit `cdfc9ed` pushed to `origin/master`.
+- Live `https://nativestate.info/world/` serves the Google-only login surface and no longer contains the email magic-link form.
